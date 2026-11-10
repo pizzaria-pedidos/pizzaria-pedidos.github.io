@@ -1,0 +1,116 @@
+rules_version = '2';
+
+// =====================================================================
+//  Regras de segurança do Firestore — Site de Pedidos da Pizzaria (v1)
+//  Publicar: Firebase Console > Firestore Database > Regras > colar > Publicar
+// =====================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 👉 TROQUE pelo UID do seu usuário admin
+    //    (Firebase Console > Authentication > Users > coluna "UID do usuário")
+    function isAdmin() {
+      return request.auth != null && request.auth.uid == 'KRosnMXQ9nbvaw1U81HRKyUgF0i1';
+    }
+
+    function telValido(t) {
+      return t is string && t.matches('^55[0-9]{10,11}$');
+    }
+
+    // ---------- Cardápio: leitura pública, escrita só admin ----------
+    match /categorias/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /produtos/{id}   { allow read: if true; allow write: if isAdmin(); }
+    match /sabores/{id}    { allow read: if true; allow write: if isAdmin(); }
+    match /bordas/{id}     { allow read: if true; allow write: if isAdmin(); }
+    match /adicionais/{id} { allow read: if true; allow write: if isAdmin(); }
+
+    // ---------- Configuração da loja ----------
+    match /config/loja {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------- Contador sequencial de pedidos (#0001, #0002…) ----------
+    // O cliente só pode avançar o contador de 1 em 1 (dentro da transação do pedido).
+    match /config/contador {
+      allow read: if true;
+      allow create: if isAdmin()
+        || (request.resource.data.keys().hasOnly(['ultimoNumero'])
+            && request.resource.data.ultimoNumero == 1);
+      allow update: if isAdmin()
+        || (request.resource.data.keys().hasOnly(['ultimoNumero'])
+            && request.resource.data.ultimoNumero == resource.data.ultimoNumero + 1);
+      allow delete: if isAdmin();
+    }
+
+    // ---------- Pedidos ----------
+    // Cliente: só CRIA (com validação). Pode LER um pedido específico pelo ID
+    // (IDs são aleatórios; o cliente conhece só os dele, guardados em clientes/{tel}).
+    // Listar todos / editar / apagar: só admin.
+    match /pedidos/{id} {
+      allow get: if true;
+      allow list, update, delete: if isAdmin();
+      allow create: if isAdmin() || pedidoValido();
+    }
+
+    function pedidoValido() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['numero', 'clienteTel', 'clienteNome', 'itens', 'tipo', 'endereco',
+                               'pagamento', 'troco', 'subtotal', 'taxaEntrega', 'total', 'status', 'criadoEm'])
+        && d.keys().hasAll(['numero', 'clienteTel', 'clienteNome', 'itens', 'tipo',
+                            'pagamento', 'subtotal', 'taxaEntrega', 'total', 'status', 'criadoEm'])
+        && d.status == 'novo'
+        && telValido(d.clienteTel)
+        && d.clienteNome is string && d.clienteNome.size() >= 3 && d.clienteNome.size() <= 80
+        && d.itens is list && d.itens.size() >= 1 && d.itens.size() <= 50
+        && d.tipo in ['entrega', 'retirada']
+        && (d.tipo == 'retirada' || d.endereco is map)
+        && d.pagamento in ['pix', 'cartao', 'dinheiro']
+        && d.subtotal is number && d.subtotal >= 0
+        && d.taxaEntrega is number && d.taxaEntrega >= 0
+        && d.total is number && d.total >= d.subtotal
+        && d.criadoEm == request.time
+        && d.numero is int
+        // o número do pedido tem que ser o mesmo que o contador acabou de virar
+        && d.numero == getAfter(/databases/$(database)/documents/config/contador).data.ultimoNumero;
+    }
+
+    // ---------- Clientes ----------
+    // O documento é o próprio telefone. O cliente pode criar/atualizar o documento
+    // do número que informou, apenas nos campos permitidos, e os contadores só sobem.
+    // LIMITAÇÃO DA V1: sem senha/SMS, quem souber o número consegue ler esse documento.
+    match /clientes/{tel} {
+      allow get: if true;
+      allow list, delete: if isAdmin();
+
+      allow create: if isAdmin()
+        || (telValido(tel)
+            && clienteCamposOk()
+            && request.resource.data.telefone == tel
+            && request.resource.data.criadoEm == request.time
+            && request.resource.data.totalPedidos in [0, 1]
+            && request.resource.data.totalGasto >= 0);
+
+      allow update: if isAdmin()
+        || (clienteCamposOk()
+            && request.resource.data.telefone == resource.data.telefone
+            && request.resource.data.get('criadoEm', null) == resource.data.get('criadoEm', null)
+            && (request.resource.data.totalPedidos == resource.data.totalPedidos
+                || request.resource.data.totalPedidos == resource.data.totalPedidos + 1)
+            && request.resource.data.totalGasto >= resource.data.totalGasto
+            && (resource.data.get('primeiroPedidoEm', null) == null
+                || request.resource.data.get('primeiroPedidoEm', null) == resource.data.primeiroPedidoEm));
+    }
+
+    function clienteCamposOk() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['nome', 'telefone', 'criadoEm', 'primeiroPedidoEm', 'ultimoPedidoEm',
+                               'totalPedidos', 'totalGasto', 'ultimoEndereco', 'ultimosPedidos'])
+        && d.nome is string && d.nome.size() >= 3 && d.nome.size() <= 80
+        && d.totalPedidos is int
+        && d.totalGasto is number
+        && (!('ultimosPedidos' in d) || (d.ultimosPedidos is list && d.ultimosPedidos.size() <= 30))
+        && (!('ultimoEndereco' in d) || d.ultimoEndereco is map);
+    }
+  }
+}

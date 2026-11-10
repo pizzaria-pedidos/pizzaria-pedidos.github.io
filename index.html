@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#d63a26">
+  <meta name="description" content="Faça seu pedido online e envie direto pelo WhatsApp.">
+  <meta property="og:title" content="Faça seu pedido 🍕">
+  <meta property="og:description" content="Monte sua pizza e envie o pedido pelo WhatsApp.">
+  <title>Faça seu pedido</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍕</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="pg-cliente">
+  <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
+
+  <!-- ============ Identificação (primeira visita) ============ -->
+  <section id="tela-boasvindas" class="boasvindas" hidden>
+    <div class="bv-card">
+      <div class="logo-img bv-logo" id="bv-logo">🍕</div>
+      <h1 id="bv-nome-loja">Bem-vindo!</h1>
+      <p class="bv-msg">Olá! 👋 Este é o seu primeiro pedido com a gente. Informe seu WhatsApp e seu nome para continuar.</p>
+      <form id="form-id" novalidate>
+        <label class="campo" id="campo-tel">
+          <span>WhatsApp</span>
+          <input id="id-tel" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="(71) 99999-9999" maxlength="15" required>
+        </label>
+        <label class="campo" id="campo-nome">
+          <span>Nome e sobrenome</span>
+          <input id="id-nome" type="text" autocomplete="name" autocapitalize="words" placeholder="Ex.: João Silva" maxlength="60" required>
+        </label>
+        <p class="erro" id="id-erro" role="alert"></p>
+        <button class="btn btn-primario btn-bloco btn-grande" type="submit" id="id-btn">Continuar</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ App ============ -->
+  <div id="app" hidden>
+    <header class="topo">
+      <div class="topo-capa"></div>
+      <div class="topo-conteudo">
+        <div class="logo-img" id="logo">🍕</div>
+        <div class="topo-textos">
+          <h1 id="nome-loja"><span class="sk sk-linha" style="width:160px;height:20px"></span></h1>
+          <span id="status-loja" class="pill">Carregando…</span>
+        </div>
+      </div>
+      <div class="topo-linha">
+        <p class="saudacao">Olá, <strong id="primeiro-nome"></strong>!
+          <button class="link link-discreto" id="btn-trocar" type="button">Não é você? Trocar número</button>
+        </p>
+        <button class="btn btn-sec btn-peq" id="btn-info" type="button">ℹ️ Mais informações</button>
+      </div>
+    </header>
+
+    <main id="view-inicio">
+      <nav class="cats" id="cats" aria-label="Categorias"></nav>
+      <div class="busca-wrap">
+        <input type="search" id="busca" placeholder="Buscar no cardápio…" aria-label="Buscar no cardápio" enterkeyhint="search">
+      </div>
+      <section id="destaques" class="destaques" hidden>
+        <h2>⭐ Destaques</h2>
+        <div class="carrossel" id="carrossel"></div>
+      </section>
+      <div id="cardapio">
+        <div class="lista-produtos" style="padding-top:18px">
+          <span class="sk sk-linha" style="width:120px;height:20px;margin-bottom:12px"></span>
+          <span class="sk sk-card"></span><span class="sk sk-card"></span><span class="sk sk-card"></span><span class="sk sk-card"></span>
+        </div>
+      </div>
+      <p id="sem-resultado" class="vazio" hidden><span class="emoji">🔎</span>Nenhum produto encontrado.</p>
+    </main>
+
+    <main id="view-pedidos" hidden>
+      <h2>Meus pedidos</h2>
+      <div id="lista-pedidos"></div>
+    </main>
+
+    <button id="barra-carrinho" class="barra-carrinho" type="button" hidden></button>
+
+    <nav class="abas" aria-label="Navegação">
+      <button type="button" data-aba="inicio" class="ativa"><span class="ic">🏠</span>Início</button>
+      <button type="button" data-aba="pedidos"><span class="ic">🧾</span>Pedidos</button>
+    </nav>
+  </div>
+
+  <!-- ============ Modal do produto (montagem) ============ -->
+  <div class="overlay" id="modal-produto" hidden>
+    <div class="sheet sheet-produto" role="dialog" aria-modal="true" aria-label="Detalhes do produto" id="mp-sheet"></div>
+  </div>
+
+  <!-- ============ Carrinho ============ -->
+  <div class="tela" id="tela-carrinho" role="dialog" aria-modal="true" aria-label="Carrinho" hidden>
+    <header class="tela-topo">
+      <button class="btn-icone" type="button" data-fechar aria-label="Voltar">←</button>
+      <h2>Seu pedido</h2>
+    </header>
+    <div class="tela-corpo">
+      <section class="bloco">
+        <div id="carrinho-itens"></div>
+        <button class="link" type="button" data-fechar>+ Adicionar mais itens</button>
+      </section>
+
+      <div id="checkout">
+        <section class="bloco">
+          <h3>Como você quer receber?</h3>
+          <div class="segmento" role="radiogroup" aria-label="Tipo de pedido">
+            <label><input type="radio" name="tipo" value="entrega">🛵 Entrega</label>
+            <label><input type="radio" name="tipo" value="retirada">🏃 Retirar no local</label>
+          </div>
+          <div id="campos-entrega">
+            <label class="campo"><span>Rua *</span><input data-end="rua" autocomplete="address-line1" maxlength="100"></label>
+            <div class="linha-campos l-1-2">
+              <label class="campo"><span>Número *</span><input data-end="numero" inputmode="text" maxlength="12"></label>
+              <label class="campo"><span>Bairro *</span><input data-end="bairro" maxlength="60"></label>
+            </div>
+            <label class="campo"><span>Complemento</span><input data-end="complemento" placeholder="Apto, bloco, casa…" maxlength="80"></label>
+            <label class="campo"><span>Ponto de referência</span><input data-end="referencia" placeholder="Perto de…" maxlength="100"></label>
+          </div>
+          <div id="info-retirada" class="info-caixa" hidden></div>
+        </section>
+
+        <section class="bloco">
+          <h3>Pagamento</h3>
+          <div id="pagamentos" class="opcoes" role="radiogroup" aria-label="Forma de pagamento"></div>
+          <label class="campo" id="campo-troco" hidden>
+            <span>Troco para quanto?</span>
+            <input id="troco" inputmode="decimal" placeholder="Ex.: 100 — deixe vazio se não precisar" maxlength="10">
+          </label>
+          <div id="info-pix" class="info-caixa" hidden></div>
+        </section>
+
+        <section class="bloco" id="resumo"></section>
+      </div>
+    </div>
+    <footer class="tela-rodape">
+      <p class="erro" id="checkout-erro" role="alert"></p>
+      <button class="btn btn-whats btn-bloco btn-grande" type="button" id="btn-finalizar">Finalizar pedido no WhatsApp</button>
+    </footer>
+  </div>
+
+  <!-- ============ Mais informações ============ -->
+  <div class="overlay" id="modal-info" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="info-titulo">
+      <div class="sheet-topo"><h2 id="info-titulo">Informações</h2><button class="btn-fechar" type="button" data-fechar aria-label="Fechar">×</button></div>
+      <div class="sheet-corpo" id="info-corpo"></div>
+    </div>
+  </div>
+
+  <!-- ============ Pedido enviado ============ -->
+  <div class="tela tela-sucesso" id="tela-sucesso" hidden>
+    <div class="sucesso-icone">✅</div>
+    <h2>Pedido enviado!</h2>
+    <p id="sucesso-texto">Estamos abrindo o WhatsApp com o resumo do seu pedido. É só tocar em <b>enviar</b> ➤</p>
+    <a class="btn btn-whats btn-bloco btn-grande" id="sucesso-link" href="#">Se o WhatsApp não abriu, toque aqui</a>
+    <button class="btn btn-sec btn-bloco" type="button" id="sucesso-voltar">Voltar ao cardápio</button>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/cliente.js"></script>
+</body>
+</html>

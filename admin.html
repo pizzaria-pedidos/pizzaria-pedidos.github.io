@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#d63a26">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Painel da pizzaria</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍕</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="pg-admin">
+  <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
+
+  <!-- ============ Login ============ -->
+  <section id="tela-login" class="login" hidden>
+    <form id="form-login" class="login-card" novalidate>
+      <div class="logo-img">🍕</div>
+      <h1>Painel da pizzaria</h1>
+      <label class="campo"><span>E-mail</span><input id="login-email" type="email" autocomplete="username" required></label>
+      <label class="campo"><span>Senha</span><input id="login-senha" type="password" autocomplete="current-password" required></label>
+      <p class="erro" id="login-erro" role="alert"></p>
+      <button class="btn btn-primario btn-bloco btn-grande" type="submit" id="login-btn">Entrar</button>
+    </form>
+  </section>
+
+  <!-- ============ Painel ============ -->
+  <div id="painel" class="painel" hidden>
+    <nav class="menu" aria-label="Menu">
+      <div class="menu-marca"><span>🍕</span><strong id="menu-nome">Painel</strong></div>
+      <button type="button" data-view="pedidos" class="ativo"><span class="ic">🧾</span><span>Pedidos</span><b class="badge-n" id="badge-novos" hidden>0</b></button>
+      <button type="button" data-view="cardapio"><span class="ic">📋</span><span>Cardápio</span></button>
+      <button type="button" data-view="clientes"><span class="ic">👥</span><span>Clientes</span></button>
+      <button type="button" data-view="config"><span class="ic">⚙️</span><span>Ajustes</span></button>
+      <button type="button" id="btn-sair" class="menu-sair"><span class="ic">🚪</span><span>Sair</span></button>
+    </nav>
+
+    <main class="conteudo">
+      <div id="aviso-permissao" class="aviso" hidden></div>
+      <button type="button" id="ativar-som" class="aviso aviso-som" hidden>🔔 Toque aqui para ativar o som de novos pedidos</button>
+
+      <!-- Pedidos -->
+      <section id="v-pedidos" class="view">
+        <div class="view-topo">
+          <h1>Pedidos</h1>
+          <button type="button" class="btn btn-peq" id="btn-loja-toggle" data-toggle-loja>…</button>
+        </div>
+        <div class="filtros">
+          <input type="date" class="input" id="f-data" aria-label="Data">
+          <select class="input" id="f-status" aria-label="Status">
+            <option value="">Todos os status</option>
+            <option value="novo">Novo</option>
+            <option value="preparo">Em preparo</option>
+            <option value="saiu">Saiu para entrega</option>
+            <option value="pronto">Pronto p/ retirada</option>
+            <option value="concluido">Concluído</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+          <button type="button" class="btn btn-sec btn-peq" id="btn-som">🔔 Som ligado</button>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div id="lista-pedidos-admin" class="lista-pedidos"></div>
+      </section>
+
+      <!-- Cardápio -->
+      <section id="v-cardapio" class="view" hidden>
+        <div class="view-topo"><h1>Cardápio</h1></div>
+        <div class="subabas" id="subabas">
+          <button type="button" data-col="categorias" class="ativo">Categorias</button>
+          <button type="button" data-col="produtos">Produtos</button>
+          <button type="button" data-col="sabores">Sabores</button>
+          <button type="button" data-col="bordas">Bordas</button>
+          <button type="button" data-col="adicionais">Adicionais</button>
+        </div>
+        <div class="lista-toolbar">
+          <input type="search" class="input" id="crud-busca" placeholder="Buscar…" aria-label="Buscar">
+          <button type="button" class="btn btn-primario" id="crud-novo">+ Novo</button>
+        </div>
+        <div class="crud-extra" id="crud-extra"></div>
+        <div class="crud-lista" id="crud-lista"></div>
+      </section>
+
+      <!-- Clientes -->
+      <section id="v-clientes" class="view" hidden>
+        <div class="view-topo"><h1>Clientes</h1><span id="cli-resumo" class="pill"></span></div>
+        <div class="filtros">
+          <input type="search" class="input" id="cli-busca" placeholder="Buscar por nome ou telefone" aria-label="Buscar cliente">
+          <select class="input" id="cli-filtro" aria-label="Filtrar">
+            <option value="">Todos</option>
+            <option value="vip">VIP</option>
+            <option value="recorrente">Recorrentes</option>
+            <option value="novo">Novos</option>
+            <option value="sumido">Sumidos</option>
+          </select>
+        </div>
+        <div class="tabela-wrap">
+          <table class="tabela" id="tabela-clientes">
+            <thead><tr>
+              <th><button type="button" data-sort="nome">Nome</button></th>
+              <th><button type="button" data-sort="telefone">WhatsApp</button></th>
+              <th class="num"><button type="button" data-sort="totalPedidos">Nº pedidos</button></th>
+              <th class="num"><button type="button" data-sort="totalGasto">Total gasto</button></th>
+              <th class="num"><button type="button" data-sort="ticket">Ticket médio</button></th>
+              <th><button type="button" data-sort="prim">Primeiro pedido</button></th>
+              <th><button type="button" data-sort="ult">Último pedido</button></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Configurações -->
+      <section id="v-config" class="view" hidden>
+        <div class="view-topo"><h1>Ajustes</h1></div>
+        <form id="form-config" class="form-config" novalidate>
+          <div class="cartao">
+            <h2>🏪 Loja</h2>
+            <label class="campo"><span>Nome da pizzaria</span><input name="nome" maxlength="60" required></label>
+            <label class="campo"><span>Logo (URL da imagem)</span><input name="logoUrl" type="url" placeholder="https://…"></label>
+            <label class="campo"><span>WhatsApp que recebe os pedidos</span><input name="whatsapp" inputmode="numeric" placeholder="(71) 99999-9999"><small>Com DDD. É salvo como 55 + DDD + número.</small></label>
+            <label class="campo"><span>Endereço da pizzaria (para retirada)</span><input name="endereco" maxlength="160"></label>
+          </div>
+
+          <div class="cartao">
+            <h2>🕒 Funcionamento</h2>
+            <button type="button" class="btn btn-bloco" id="cfg-fechar" data-toggle-loja style="margin-bottom:14px">…</button>
+            <div id="cfg-horarios"></div>
+          </div>
+
+          <div class="cartao">
+            <h2>🛵 Entrega e pagamento</h2>
+            <div class="linha-campos">
+              <label class="campo"><span>Taxa de entrega (R$)</span><input name="taxaEntrega" inputmode="decimal" placeholder="0,00"></label>
+              <label class="campo"><span>Pedido mínimo (R$)</span><input name="pedidoMinimo" inputmode="decimal" placeholder="0 = sem mínimo"></label>
+            </div>
+            <p class="campo"><span>Formas de pagamento aceitas</span></p>
+            <div id="cfg-pagamentos" style="margin-bottom:12px"></div>
+            <label class="campo"><span>Chave Pix (aparece para o cliente)</span><input name="chavePix" maxlength="120"></label>
+          </div>
+
+          <div class="cartao">
+            <h2>📋 Cardápio</h2>
+            <label class="campo"><span>Preço da pizza com vários sabores</span>
+              <select name="regraPrecoPizza" id="cfg-regra"></select>
+            </label>
+            <label class="check"><input type="checkbox" name="ocultarIndisponiveis"> Esconder itens indisponíveis (em vez de mostrar acinzentado)</label>
+          </div>
+
+          <div class="cartao">
+            <h2>👥 Clientes</h2>
+            <div class="linha-campos">
+              <label class="campo"><span>Recorrente a partir de</span><input name="limiteRecorrente" type="number" min="2" inputmode="numeric"><small>pedidos</small></label>
+              <label class="campo"><span>VIP a partir de</span><input name="limiteVip" type="number" min="2" inputmode="numeric"><small>pedidos</small></label>
+            </div>
+            <label class="campo"><span>"Sumido" após quantos dias sem pedir?</span><input name="diasSumido" type="number" min="1" inputmode="numeric"></label>
+          </div>
+
+          <div class="cfg-salvar"><button class="btn btn-primario btn-bloco btn-grande" type="submit" id="cfg-salvar">Salvar ajustes</button></div>
+
+          <details class="avancado">
+            <summary>Avançado</summary>
+            <p>Seu UID de admin (vai no <b>firestore.rules</b>): <code id="cfg-uid"></code></p>
+            <p>Cadastra categorias, pizzas, 8 sabores, bordas, adicionais e bebidas de exemplo. Itens com o mesmo código são sobrescritos.</p>
+            <button type="button" class="btn btn-sec" id="btn-seed">Popular cardápio de exemplo</button>
+          </details>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal genérico -->
+  <div class="overlay" id="modal" hidden>
+    <div class="sheet sheet-admin" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+      <div class="sheet-topo"><h2 id="modal-titulo"></h2><button type="button" class="btn-fechar" data-fechar aria-label="Fechar">×</button></div>
+      <div class="sheet-corpo" id="modal-corpo"></div>
+      <div class="sheet-rodape" id="modal-rodape"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>
