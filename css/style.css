@@ -649,3 +649,7 @@ table.res tr:last-child td { border-bottom: 0; }
 .neg { color: var(--erro); }
 .okc { color: var(--ok); }
 .warnc { color: var(--aviso); }
+
+/* Aviso quando a página não carrega */
+.falha-carga { position: fixed; inset: 0; z-index: 300; background: var(--fundo); display: grid; place-items: center; padding: 24px 16px; text-align: center; }
+.falha-carga .bv-card { max-width: 420px; }

@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://firestore.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body class="pg-cliente">
   <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
@@ -161,8 +161,32 @@
     <button class="btn btn-sec btn-bloco" type="button" id="sucesso-voltar">Voltar ao cardápio</button>
   </div>
 
+
+  <!-- Se a página não carregar (internet, navegador antigo ou atualização no meio), mostra o que fazer em vez de tela branca -->
+  <div id="falha-carga" class="falha-carga" hidden>
+    <div class="bv-card">
+      <div style="font-size:2.6rem">😕</div>
+      <h1 style="font-size:1.3rem;margin:8px 0">Não conseguimos abrir a página</h1>
+      <p class="bv-msg">1. Confira a internet.<br>2. Toque em <b>Recarregar</b>.<br>3. Se continuar, atualize o navegador (Chrome ou Safari) ou abra o link no Chrome.</p>
+      <button type="button" class="btn btn-primario btn-bloco btn-grande" style="margin-top:16px" onclick="location.reload()">Recarregar</button>
+      <p id="falha-detalhe" style="margin-top:12px;font-size:.75rem;color:var(--texto-2);word-break:break-word"></p>
+    </div>
+  </div>
+  <script nomodule>document.getElementById('falha-carga').hidden = false;</script>
+  <script>
+    (function () {
+      var erros = [];
+      window.addEventListener('error', function (e) { erros.push(e.message || (e.target && e.target.src) || 'erro'); }, true);
+      setTimeout(function () {
+        if (document.querySelector('#app:not([hidden]), #tela-boasvindas:not([hidden])')) return;
+        document.getElementById('falha-carga').hidden = false;
+        document.getElementById('falha-detalhe').textContent = erros.length ? 'Detalhe: ' + erros.slice(0, 3).join(' | ') : '';
+      }, 12000);
+    })();
+  </script>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="js/cliente.js"></script>
+  <script type="module" src="js/cliente.js?v=3"></script>
 </body>
 </html>

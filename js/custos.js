@@ -9,8 +9,8 @@
 // =====================================================================
 import {
   db, doc, setDoc, onSnapshot, collection, query, where, writeBatch, Timestamp, serverTimestamp,
-} from './firebase-config.js';
-import * as U from './utils.js';
+} from './firebase-config.js?v=3';
+import * as U from './utils.js?v=3';
 
 const { esc, fmtBRL: brl } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -78,9 +78,13 @@ function simplesCustoUn(id) {
 }
 
 // ---------- Tamanhos ----------
+/** Tamanhos das pizzas LIGADAS no cardápio (desligadas não aparecem; se todas
+ *  estiverem desligadas, mostra todas para as fichas não sumirem). */
 function tamanhos() {
   const t = [];
-  [...ctx.S.produtos].filter((p) => p.tipo === 'pizza' && p.tamanho)
+  const pizzas = ctx.S.produtos.filter((p) => p.tipo === 'pizza' && p.tamanho);
+  const ligadas = pizzas.filter((p) => p.disponivel !== false);
+  [...(ligadas.length ? ligadas : pizzas)]
     .sort((a, b) => (b.fatias || 0) - (a.fatias || 0))
     .forEach((p) => { if (!t.includes(p.tamanho)) t.push(p.tamanho); });
   return t;
@@ -149,12 +153,20 @@ export function calcPedido(p) {
 //  Firestore
 // ---------------------------------------------------------------------
 const refFichas = () => doc(db, 'custos', 'fichas');
-let _t;
+// Enquanto houver alteração esperando para salvar (ou salvando), os dados que
+// chegam da nuvem são ignorados — assim uma confirmação atrasada (internet
+// fraca) nunca apaga o que você acabou de digitar.
+let _t, agendado = false, emAndamento = 0;
 function salvar() {
   ultimaEdicao = Date.now();
+  agendado = true;
   clearTimeout(_t);
   _t = setTimeout(() => {
-    setDoc(refFichas(), CU).catch((e) => { ctx.tratarErro(e); U.toast('Erro ao salvar custos.', 'erro-t'); });
+    agendado = false;
+    emAndamento++;
+    setDoc(refFichas(), CU)
+      .catch((e) => { ctx.tratarErro(e); U.toast('Erro ao salvar custos.', 'erro-t'); })
+      .finally(() => { emAndamento--; ultimaEdicao = Date.now(); });
   }, 700);
 }
 
@@ -162,7 +174,7 @@ export function iniciarCustos(c) {
   ctx = c;
   pararCustos();
   unsubs.push(onSnapshot(refFichas(), (s) => {
-    if (s.metadata.hasPendingWrites || Date.now() - ultimaEdicao < 3000) { carregado = true; return; }
+    if (carregado && (agendado || emAndamento > 0 || s.metadata.hasPendingWrites || Date.now() - ultimaEdicao < 3000)) return;
     CU = normCU(s.exists() ? s.data() : null);
     carregado = true;
     if (aberto && !digitando()) render();

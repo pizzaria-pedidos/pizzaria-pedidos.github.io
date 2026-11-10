@@ -6,6 +6,21 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **`admin.html`**: painel (pedidos com som, cardápio, clientes, ajustes)
 - HTML + CSS + JavaScript puro, sem build. Firebase (Firestore + Authentication). Hospedagem no GitHub Pages.
 
+## ✅ Status atual (10/11/2026): no ar
+
+| | |
+|---|---|
+| Site do cliente | <https://pizzaria-pedidos.github.io> |
+| Painel (admin) | <https://pizzaria-pedidos.github.io/admin.html> |
+| Repositório | <https://github.com/pizzaria-pedidos/pizzaria-pedidos.github.io> (organização `pizzaria-pedidos`, branch `main`, Pages na raiz) |
+| Firebase | projeto `pizzaria-site-ad43a` (Firestore em São Paulo + Authentication e-mail/senha). Regras deste repositório **publicadas**. |
+| Admin | UID `KRosnMXQ9nbvaw1U81HRKyUgF0i1` (fixo no `firestore.rules`) |
+| Domínios autorizados no Auth | `pizzaria-pedidos.github.io` (e o antigo `magalhaeseduardo71.github.io`) |
+
+- **Cardápio:** um tamanho só, **Pizza Grande 35 cm, 8 fatias, até 3 sabores**. A Pizza Média está **desligada, não excluída**: para voltar a vender, é só ligar em Cardápio → Produtos.
+- **Área de custos:** o PIN já foi criado. As fichas foram importadas do sistema antigo: Massa (rende 4 discos), Base (molho, mussarela e orégano), Calabresa e Mussarela. Frango c/ Catupiry foi preenchido à mão.
+- **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
+
 ```
 index.html  admin.html  firestore.rules  README.md
 css/style.css
@@ -90,11 +105,11 @@ Depois disso:
 | Link personalizado | `https://pizzaria-pedidos.github.io/?tel=5571999999999` |
 | Painel | <https://pizzaria-pedidos.github.io/admin.html> |
 
-
-- **Link geral:** `https://pizzaria-pedidos.github.io/`
-- **Link personalizado** (o cliente nem digita o número): `https://pizzaria-pedidos.github.io/?tel=5571999999999`
+- **Link personalizado** (o cliente nem digita o número): troque o número pelo do cliente, com 55 + DDD.
   - Se o número já estiver cadastrado, o cliente entra direto no cardápio.
   - Se for novo, o número já vem preenchido e ele só informa o nome.
+
+⚠️ O endereço antigo `magalhaeseduardo71.github.io/pedidos-pizzaria/` **não funciona mais** desde a mudança para a organização, porque o GitHub não redireciona sites. Use só os links acima.
 
 Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardapio`).
 
@@ -122,7 +137,7 @@ Toque no cadeado discreto no topo do painel. Na primeira vez, você cria um **PI
 - **Lucro:** custo, venda e lucro de cada sabor, em cada tamanho, e também das bordas, adicionais e bebidas.
 - **Gramas:** quanto vai de cada ingrediente na pizza inteira, na metade (½) e no terço (⅓), por tamanho.
 
-**Tamanhos:** preencha todas as fichas para a pizza de **referência** (por padrão, a Grande). Em *Fichas → Base e tamanhos*, diga quanto os outros tamanhos usam. Exemplo: "a Média usa 70% da Grande". Nas pizzas de 2 ou 3 sabores, o recheio é dividido e a base entra inteira.
+**Tamanhos:** as fichas valem para a pizza de **referência** (hoje, a Grande, que é a única ligada). Tamanhos **desligados** no cardápio não aparecem na área de custos. Se um dia ligar outro tamanho, ele aparece sozinho em *Fichas → Base e tamanhos*, onde você diz quanto ele usa da Grande (ex.: "a Média usa 70%"). Nas pizzas de 2 ou 3 sabores, o recheio é dividido e a base entra inteira.
 
 **Trazer as fichas do sistema antigo:**
 1. No sistema antigo, vá em **Cardápio → Exportar dados**. Isso baixa um arquivo `.json`.
@@ -131,6 +146,13 @@ Toque no cadeado discreto no topo do painel. Na primeira vez, você cria um **PI
 Massa e base são copiadas. Sabores, bordas e bebidas são copiados **pelo nome**. Os que tiverem nome diferente no cardápio novo aparecem numa lista, e você pode renomear e importar de novo.
 
 > O PIN protege contra olhares de quem usa o painel aberto, por exemplo um funcionário. Os custos e o lucro **nunca** chegam ao site do cliente: as regras do Firestore só deixam o admin ler `custos` e `custosPedidos`.
+
+## 📱 Se não abrir no celular
+
+1. **Confira o endereço.** Tem que ser `pizzaria-pedidos.github.io`. O navegador pode sugerir o endereço antigo pelo histórico.
+2. **Não confunda com o app antigo.** O sistema de custos antigo pode estar instalado no celular com o nome **"Pizzaria Pedidos"** (ícone 🍕). Ele abre o sistema velho. Para o site novo, abra o link no Chrome e use **⋮ → Adicionar à tela inicial**. No iPhone, use **Compartilhar → Adicionar à Tela de Início**. Dê um nome diferente, por exemplo **"Painel Pedidos"**.
+3. Se aparecer **"Não conseguimos abrir a página"**, toque em **Recarregar**. Se continuar, atualize o Chrome ou o Safari. A linha "Detalhe" no fim da mensagem mostra a causa: tire um print e mande para o Claude.
+4. **Logo depois de uma atualização do site**, o celular pode levar alguns minutos para pegar a versão nova. Recarregar resolve.
 
 ## ⚠️ Aviso honesto sobre segurança (v1)
 
@@ -148,4 +170,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=3` → `?v=4` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.
