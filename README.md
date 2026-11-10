@@ -63,15 +63,15 @@ Resumo do que as regras permitem:
 ## 4) Publicar no GitHub Pages
 
 1. Crie uma conta em <https://github.com>, se ainda não tiver.
-2. Clique em **New repository**. Use um nome como `pedidos-pizzaria`, marque **Public** e crie.
+2. Clique em **New repository**. Use um nome como `pizzaria-pedidos.github.io` (dentro da organização `pizzaria-pedidos`), marque **Public** e crie.
 3. Clique em **uploading an existing file** e arraste **todos os arquivos e as pastas** (`css`, `js`, `index.html`, `admin.html`, etc.). Depois clique em **Commit changes**.
 4. Vá em **Settings → Pages**. Em *Source*, escolha **Deploy from a branch**, depois a branch **main** e a pasta **/(root)**, e clique em **Save**.
 5. Depois de 1 ou 2 minutos, o site fica no ar em:
-   `https://magalhaeseduardo71.github.io/pedidos-pizzaria/`
-6. **Importante:** no Firebase, vá em **Authentication → Configurações → Domínios autorizados** e adicione `magalhaeseduardo71.github.io` (sem isso o login do painel não funciona). Se um dia trocar o endereço do site, adicione o novo domínio aqui também.
+   `https://pizzaria-pedidos.github.io/`
+6. **Importante:** no Firebase, vá em **Authentication → Configurações → Domínios autorizados** e adicione `pizzaria-pedidos.github.io` (sem isso o login do painel não funciona). Se um dia trocar o endereço do site, adicione o novo domínio aqui também.
 
 Depois disso:
-1. Abra `https://magalhaeseduardo71.github.io/pedidos-pizzaria/admin.html` e entre com o e-mail e a senha do passo 2.
+1. Abra `https://pizzaria-pedidos.github.io/admin.html` e entre com o e-mail e a senha do passo 2.
 2. Vá em **Ajustes**, preencha o nome, o **WhatsApp que recebe os pedidos**, o horário, a taxa de entrega e a chave Pix, e clique em **Salvar**.
 3. Se quiser começar com um exemplo, abra **Ajustes → Avançado → Popular cardápio de exemplo**. Depois é só editar ou apagar o que não usar.
 
@@ -79,8 +79,18 @@ Depois disso:
 
 ## 5) Qual link mandar para os clientes
 
-- **Link geral:** `https://magalhaeseduardo71.github.io/pedidos-pizzaria/`
-- **Link personalizado** (o cliente nem digita o número): `https://magalhaeseduardo71.github.io/pedidos-pizzaria/?tel=5571999999999`
+> Repositório: <https://github.com/pizzaria-pedidos/pizzaria-pedidos.github.io> (organização `pizzaria-pedidos`).
+> Como o repositório se chama `pizzaria-pedidos.github.io`, o site fica na raiz do endereço, sem nome de pasta.
+
+| | Link |
+|---|---|
+| Clientes | <https://pizzaria-pedidos.github.io> |
+| Link personalizado | `https://pizzaria-pedidos.github.io/?tel=5571999999999` |
+| Painel | <https://pizzaria-pedidos.github.io/admin.html> |
+
+
+- **Link geral:** `https://pizzaria-pedidos.github.io/`
+- **Link personalizado** (o cliente nem digita o número): `https://pizzaria-pedidos.github.io/?tel=5571999999999`
   - Se o número já estiver cadastrado, o cliente entra direto no cardápio.
   - Se for novo, o número já vem preenchido e ele só informa o nome.
 
