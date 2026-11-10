@@ -13,6 +13,7 @@ js/firebase-config.js   ← único arquivo onde você cola a configuração
 js/utils.js             ← funções compartilhadas (preço, horário, formatação)
 js/cliente.js           ← lógica da página do cliente
 js/admin.js             ← lógica do painel
+js/custos.js            ← área de custos (cadeado 🔒 no painel)
 ```
 
 ---
@@ -59,6 +60,7 @@ Resumo do que as regras permitem:
 | `pedidos` | só **cria**, com validação, e lê um pedido pelo ID | tudo |
 | `clientes/{telefone}` | cria e atualiza só os campos permitidos; contadores só sobem de 1 em 1 | tudo |
 | `config/contador` | só avança +1 junto com o pedido | tudo |
+| `custos`, `custosPedidos` | **nada** | tudo |
 
 ## 4) Publicar no GitHub Pages
 
@@ -105,6 +107,30 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
 - **Fechar a loja agora:** use o botão no topo da tela de Pedidos. Ele vale até você reabrir. Fora desse botão, a loja abre e fecha sozinha pelo horário configurado, inclusive em horários que passam da meia-noite (ex.: 18:00 → 01:00).
 - **Preço de pizza com vários sabores:** por padrão vale o **sabor mais caro**. Dá para trocar para **média dos sabores** em Ajustes → Cardápio.
 - **Tamanhos:** o campo "Tamanho" do produto pizza (ex.: `Grande`) é o nome que aparece na tabela de preços de cada sabor. Se um sabor ficar sem preço num tamanho, ele não é oferecido nesse tamanho.
+
+## 🔒 Área de custos (cadeado no canto superior direito do painel)
+
+Toque no cadeado discreto no topo do painel. Na primeira vez, você cria um **PIN de 4 a 8 números**; depois ele é pedido sempre.
+
+- **Balanço:** cada pedido que chega tem o custo **gravado sozinho** com os preços das fichas naquele momento. Mostra o dinheiro do custo (para repor), o dinheiro do lucro e as taxas de entrega à parte, pedido por pedido, com cada cliente numa cor. Use ◀ ▶ para outros dias. Se mudar as fichas, toque em **Recalcular este dia**.
+- **Fichas:**
+  - Massa: o custo de 1 disco.
+  - Base e tamanhos: o que vai em toda pizza, mais a proporção de cada tamanho.
+  - Sabores: o recheio de cada um.
+  - Bordas e Adicionais.
+  - Bebidas e outros: unidades no fardo e quanto pagou nele.
+- **Lucro:** custo, venda e lucro de cada sabor, em cada tamanho, e também das bordas, adicionais e bebidas.
+- **Gramas:** quanto vai de cada ingrediente na pizza inteira, na metade (½) e no terço (⅓), por tamanho.
+
+**Tamanhos:** preencha todas as fichas para a pizza de **referência** (por padrão, a Grande). Em *Fichas → Base e tamanhos*, diga quanto os outros tamanhos usam. Exemplo: "a Média usa 70% da Grande". Nas pizzas de 2 ou 3 sabores, o recheio é dividido e a base entra inteira.
+
+**Trazer as fichas do sistema antigo:**
+1. No sistema antigo, vá em **Cardápio → Exportar dados**. Isso baixa um arquivo `.json`.
+2. No site novo, vá em **cadeado → Fichas → Massa → Importar fichas do sistema antigo** e escolha esse arquivo.
+
+Massa e base são copiadas. Sabores, bordas e bebidas são copiados **pelo nome**. Os que tiverem nome diferente no cardápio novo aparecem numa lista, e você pode renomear e importar de novo.
+
+> O PIN protege contra olhares de quem usa o painel aberto, por exemplo um funcionário. Os custos e o lucro **nunca** chegam ao site do cliente: as regras do Firestore só deixam o admin ler `custos` e `custosPedidos`.
 
 ## ⚠️ Aviso honesto sobre segurança (v1)
 

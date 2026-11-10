@@ -39,6 +39,7 @@
     </nav>
 
     <main class="conteudo">
+      <button type="button" class="cadeado" id="btn-cadeado" title="Área restrita" aria-label="Área restrita"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
       <div id="aviso-permissao" class="aviso" hidden></div>
       <button type="button" id="ativar-som" class="aviso aviso-som" hidden>🔔 Toque aqui para ativar o som de novos pedidos</button>
 
@@ -111,6 +112,9 @@
           </table>
         </div>
       </section>
+
+      <!-- Área de custos (restrita, abre pelo cadeado) -->
+      <section id="v-custos" class="view" hidden></section>
 
       <!-- Configurações -->
       <section id="v-config" class="view" hidden>

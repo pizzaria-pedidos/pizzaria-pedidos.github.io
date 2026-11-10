@@ -10,6 +10,7 @@ import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import * as U from './utils.js';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -75,6 +76,7 @@ function pararTudo() {
   S.unsubDia?.();
   S.unsubDia = null;
   S.cfgPreenchida = false;
+  pararCustos();
 }
 
 function tratarErro(e) {
@@ -110,6 +112,7 @@ function iniciarPainel(user) {
     S.unsubs.push(onSnapshot(collection(db, c), (snap) => {
       S[c] = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort(U.porOrdem);
       if (S.view === 'cardapio') renderCrud();
+      custosCardapioMudou();
     }, tratarErro));
   });
 
@@ -118,6 +121,7 @@ function iniciarPainel(user) {
     if (S.view === 'clientes') renderClientes();
   }, tratarErro));
 
+  iniciarCustos({ S, tratarErro, abrirModal, fecharModal, mostrarView });
   ouvirNovos();
   if (!$('#f-data').value) $('#f-data').value = hojeISO();
   ouvirDia();
@@ -134,6 +138,7 @@ const hojeISO = () => {
 // ---------- Navegação ----------
 function mostrarView(v) {
   if (!['pedidos', 'cardapio', 'clientes', 'config'].includes(v)) v = 'pedidos';
+  sairCustos();
   S.view = v;
   $$('.view').forEach((el) => (el.hidden = el.id !== `v-${v}`));
   $$('.menu [data-view]').forEach((b) => b.classList.toggle('ativo', b.dataset.view === v));
@@ -144,6 +149,7 @@ function mostrarView(v) {
   if (v === 'config') preencherConfig();
   window.scrollTo({ top: 0 });
 }
+$('#btn-cadeado').addEventListener('click', abrirCadeado);
 $('.menu').addEventListener('click', (e) => {
   const b = e.target.closest('[data-view]');
   if (b) mostrarView(b.dataset.view);

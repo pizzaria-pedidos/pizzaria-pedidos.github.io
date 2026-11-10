@@ -771,9 +771,13 @@ $('#tela-carrinho').addEventListener('click', (e) => {
   }
 });
 $('#tela-carrinho').addEventListener('change', (e) => {
+  // Só redesenha ao trocar entrega/retirada ou pagamento. (Redesenhar no "change"
+  // dos campos de endereço engolia o toque seguinte — ex.: digitar o bairro e
+  // tocar direto no Pix não marcava o Pix.)
+  if (e.target.name !== 'tipo' && e.target.name !== 'pagamento') return;
   if (e.target.name === 'tipo') S.checkout.tipo = e.target.value;
   if (e.target.name === 'pagamento') S.checkout.pagamento = e.target.value;
-  if (e.target.name) $('#checkout-erro').textContent = '';
+  $('#checkout-erro').textContent = '';
   salvarCheckout();
   renderCarrinho();
 });
