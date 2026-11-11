@@ -6,19 +6,23 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **`admin.html`**: painel (pedidos com som, cardápio, clientes, ajustes)
 - HTML + CSS + JavaScript puro, sem build. Firebase (Firestore + Authentication). Hospedagem no GitHub Pages.
 
-## ✅ Status atual (10/11/2026): no ar
+## ✅ Status atual (11/11/2026): no ar
 
 | | |
 |---|---|
 | Site do cliente | <https://pizzaria-pedidos.github.io> |
 | Painel (admin) | <https://pizzaria-pedidos.github.io/admin.html> |
 | Repositório | <https://github.com/pizzaria-pedidos/pizzaria-pedidos.github.io> (organização `pizzaria-pedidos`, branch `main`, Pages na raiz) |
-| Firebase | projeto `pizzaria-site-ad43a` (Firestore em São Paulo + Authentication e-mail/senha). Regras deste repositório **publicadas**. |
+| Firebase | projeto `pizzaria-site-ad43a` (Firestore em São Paulo + Authentication e-mail/senha). Regras deste repositório **publicadas em 11/11/2026** (versão com `apelido` e área de custos). |
 | Admin | UID `KRosnMXQ9nbvaw1U81HRKyUgF0i1` (fixo no `firestore.rules`) |
 | Domínios autorizados no Auth | `pizzaria-pedidos.github.io` (e o antigo `magalhaeseduardo71.github.io`) |
 
 - **Cardápio:** um tamanho só, **Pizza Grande 35 cm, 8 fatias, até 3 sabores**. A Pizza Média está **desligada, não excluída**: para voltar a vender, é só ligar em Cardápio → Produtos.
 - **Área de custos:** o PIN já foi criado. As fichas foram importadas do sistema antigo: Massa (rende 4 discos), Base (molho, mussarela e orégano), Calabresa e Mussarela. Frango c/ Catupiry foi preenchido à mão.
+- **Novidades de 11/11/2026:**
+  - Apelido opcional na entrada do cliente.
+  - Botão de **ligar e desligar a entrega**, no topo de Pedidos e em Ajustes.
+  - Versão dos arquivos `?v=4`.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
 ```
