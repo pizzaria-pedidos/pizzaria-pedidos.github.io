@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://firestore.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=3">
+  <link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body class="pg-cliente">
   <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
@@ -33,6 +33,10 @@
           <span>Nome e sobrenome</span>
           <input id="id-nome" type="text" autocomplete="name" autocapitalize="words" placeholder="Ex.: João Silva" maxlength="60" required>
         </label>
+        <label class="campo" id="campo-apelido">
+          <span>Apelido <small class="opcional">(opcional)</small></span>
+          <input id="id-apelido" type="text" autocomplete="nickname" autocapitalize="words" placeholder="Como gosta de ser chamado? Ex.: Joãozinho" maxlength="30">
+        </label>
         <p class="erro" id="id-erro" role="alert"></p>
         <button class="btn btn-primario btn-bloco btn-grande" type="submit" id="id-btn">Continuar</button>
       </form>
@@ -48,6 +52,7 @@
         <div class="topo-textos">
           <h1 id="nome-loja"><span class="sk sk-linha" style="width:160px;height:20px"></span></h1>
           <span id="status-loja" class="pill">Carregando…</span>
+          <span id="aviso-retirada" class="pill pill-retirada" hidden>🏃 Hoje só retirada no local</span>
         </div>
       </div>
       <div class="topo-linha">
@@ -110,7 +115,7 @@
         <section class="bloco">
           <h3>Como você quer receber?</h3>
           <div class="segmento" role="radiogroup" aria-label="Tipo de pedido">
-            <label><input type="radio" name="tipo" value="entrega">🛵 Entrega</label>
+            <label><input type="radio" name="tipo" value="entrega"><span>🛵 Entrega<small id="entrega-off" hidden>hoje não</small></span></label>
             <label><input type="radio" name="tipo" value="retirada">🏃 Retirar no local</label>
           </div>
           <div id="campos-entrega">
@@ -187,6 +192,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="js/cliente.js?v=3"></script>
+  <script type="module" src="js/cliente.js?v=4"></script>
 </body>
 </html>

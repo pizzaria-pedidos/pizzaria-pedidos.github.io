@@ -113,9 +113,10 @@ service cloud.firestore {
 
     function clienteCamposOk() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['nome', 'telefone', 'criadoEm', 'primeiroPedidoEm', 'ultimoPedidoEm',
+      return d.keys().hasOnly(['nome', 'apelido', 'telefone', 'criadoEm', 'primeiroPedidoEm', 'ultimoPedidoEm',
                                'totalPedidos', 'totalGasto', 'ultimoEndereco', 'ultimosPedidos'])
         && d.nome is string && d.nome.size() >= 3 && d.nome.size() <= 80
+        && (!('apelido' in d) || (d.apelido is string && d.apelido.size() <= 30))
         && d.totalPedidos is int
         && d.totalGasto is number
         && (!('ultimosPedidos' in d) || (d.ultimosPedidos is list && d.ultimosPedidos.size() <= 30))

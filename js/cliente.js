@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=3';
-import * as U from './utils.js?v=3';
+} from './firebase-config.js?v=4';
+import * as U from './utils.js?v=4';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -52,6 +52,8 @@ function fecharTodasCamadas() {
 // =====================================================================
 //  Regras do cardápio
 // =====================================================================
+/** A pizzaria pode desligar a entrega no painel (ex.: "hoje só retirada") */
+const entregaOn = () => S.loja.entregaAtiva !== false;
 const catAtiva = (id) => S.categorias.some((c) => c.id === id && c.ativo !== false);
 const saborPermitido = (s, p) => !p.saboresPermitidos?.length || p.saboresPermitidos.includes(s.id);
 
@@ -183,7 +185,7 @@ async function iniciar() {
     // Link personalizado (?tel=...): se já é cliente, entra direto
     const snap = await U.comTimeout(getDoc(doc(db, 'clientes', telUrl)), 6000).catch(() => null);
     if (snap?.exists() && snap.data().nome) {
-      entrar({ tel: telUrl, nome: snap.data().nome }, snap.data());
+      entrar({ tel: telUrl, nome: snap.data().nome, apelido: snap.data().apelido || '' }, snap.data());
       return;
     }
     mostrarBoasVindas(telUrl);
@@ -202,16 +204,21 @@ function mostrarBoasVindas(tel = '') {
   $('#tela-boasvindas').hidden = false;
   $('#id-tel').value = U.mascaraTel(tel);
   $('#id-nome').value = '';
+  $('#id-apelido').value = '';
   $('#id-erro').textContent = '';
   setTimeout(() => (tel ? $('#id-nome') : $('#id-tel')).focus(), 50);
 }
 
+/** Como chamar o cliente: o apelido, se tiver; senão o primeiro nome */
+const chamarPor = (c) => (c.apelido || '').trim() || c.nome.split(' ')[0];
+
 function entrar(cli, dados = {}) {
-  S.cliente = { ...dados, tel: cli.tel, nome: cli.nome };
-  U.lsSet('pz_cliente', { tel: cli.tel, nome: cli.nome });
+  const apelido = (cli.apelido ?? dados.apelido ?? '').trim();
+  S.cliente = { ...dados, tel: cli.tel, nome: cli.nome, apelido };
+  U.lsSet('pz_cliente', { tel: cli.tel, nome: cli.nome, apelido });
   $('#tela-boasvindas').hidden = true;
   $('#app').hidden = false;
-  $('#primeiro-nome').textContent = cli.nome.split(' ')[0];
+  $('#primeiro-nome').textContent = chamarPor(S.cliente);
   preencherEnderecoSalvo();
   renderTudo();
 }
@@ -220,7 +227,9 @@ async function carregarDadosCliente() {
   try {
     const snap = await U.comTimeout(getDoc(doc(db, 'clientes', S.cliente.tel)), 8000);
     if (snap.exists()) {
-      S.cliente = { ...S.cliente, ...snap.data(), tel: S.cliente.tel, nome: S.cliente.nome };
+      const d = snap.data();
+      S.cliente = { ...S.cliente, ...d, tel: S.cliente.tel, nome: S.cliente.nome, apelido: S.cliente.apelido || d.apelido || '' };
+      $('#primeiro-nome').textContent = chamarPor(S.cliente);
       preencherEnderecoSalvo();
     }
   } catch (e) {
@@ -249,6 +258,7 @@ $('#form-id').addEventListener('submit', async (e) => {
   $('#campo-nome').classList.toggle('invalido', palavras.length < 2);
   if (palavras.length < 2) { erro.textContent = 'Informe seu nome e sobrenome.'; $('#id-nome').focus(); return; }
   erro.textContent = '';
+  const apelido = $('#id-apelido').value.trim().replace(/\s+/g, ' ').slice(0, 30);
 
   const btn = $('#id-btn');
   btn.disabled = true;
@@ -273,8 +283,22 @@ $('#form-id').addEventListener('submit', async (e) => {
   }
   btn.disabled = false;
   btn.textContent = 'Continuar';
-  entrar({ tel, nome }, dados);
+  entrar({ tel, nome, apelido }, dados);
+  salvarApelido(tel, apelido, dados.apelido || '');
 });
+
+/**
+ * O apelido é gravado à parte (nunca dentro do pedido), então um erro aqui
+ * — sem internet, ou regras do Firestore antigas — nunca impede o pedido.
+ */
+async function salvarApelido(tel, apelido, atual) {
+  if (apelido === atual) return;
+  try {
+    await U.comTimeout(updateDoc(doc(db, 'clientes', tel), { apelido }), 8000);
+  } catch (e) {
+    console.warn('Apelido não salvo na nuvem (fica só neste aparelho)', e);
+  }
+}
 
 $('#btn-trocar').addEventListener('click', () => {
   U.lsDel('pz_cliente');
@@ -306,6 +330,7 @@ function renderTopo() {
   const pill = $('#status-loja');
   pill.textContent = st.texto;
   pill.className = `pill ${st.aberta ? 'aberta' : 'fechada'}`;
+  $('#aviso-retirada').hidden = entregaOn();
 }
 
 function abrirInfo() {
@@ -323,7 +348,7 @@ function abrirInfo() {
     <ul class="info-lista">
       ${l.endereco ? `<li><strong>📍 Endereço</strong>${esc(l.endereco)}</li>` : ''}
       <li><strong>🕒 Horário de funcionamento</strong><table class="horarios-tabela">${horarios}</table></li>
-      <li><strong>🛵 Taxa de entrega</strong>${l.taxaEntrega ? fmtBRL(l.taxaEntrega) : 'Grátis'}</li>
+      <li><strong>🛵 Entrega</strong>${entregaOn() ? `Taxa: ${l.taxaEntrega ? fmtBRL(l.taxaEntrega) : 'grátis'}` : 'Hoje não estamos fazendo entregas — só retirada no local.'}</li>
       ${l.pedidoMinimo ? `<li><strong>🧾 Pedido mínimo</strong>${fmtBRL(l.pedidoMinimo)}</li>` : ''}
       <li><strong>💳 Formas de pagamento</strong>${esc(pags)}</li>
       ${l.whatsapp ? `<li><strong>📱 WhatsApp</strong><a class="link" href="https://wa.me/${esc(l.whatsapp)}">${esc(U.fmtTel(l.whatsapp))}</a></li>` : ''}
@@ -722,6 +747,13 @@ function renderCarrinho() {
   }
 
   const l = S.loja;
+  // entrega desligada no painel → só retirada
+  if (!entregaOn() && S.checkout.tipo === 'entrega') { S.checkout.tipo = 'retirada'; salvarCheckout(); }
+  $$('input[name="tipo"]').forEach((r) => {
+    r.checked = r.value === S.checkout.tipo;
+    r.disabled = r.value === 'entrega' && !entregaOn();
+  });
+  $('#entrega-off').hidden = entregaOn();
   const entrega = S.checkout.tipo === 'entrega';
   $('#campos-entrega').hidden = !entrega;
   $('#info-retirada').hidden = entrega;
@@ -879,7 +911,8 @@ const SEP = '━━━━━━━━━━━━━━';
 function montarMensagem(p, info) {
   const L = [];
   L.push(`🍕 *NOVO PEDIDO${info.numero ? ' ' + U.numPedido(info.numero) : ''}*`, '');
-  L.push(`👤 *Cliente:* ${p.clienteNome}`);
+  const apelido = (S.cliente?.apelido || '').trim();
+  L.push(`👤 *Cliente:* ${p.clienteNome}${apelido ? ` (${apelido})` : ''}`);
   L.push(`📱 *WhatsApp:* ${U.fmtTel(p.clienteTel)}`);
   L.push(info.totalPedidos <= 1
     ? '⭐ Cliente novo · 1º pedido'
@@ -951,6 +984,7 @@ $('#btn-finalizar').addEventListener('click', async () => {
   }
 
   // atualiza dados locais do cliente
+  if (info.numero && S.cliente.apelido) salvarApelido(S.cliente.tel, S.cliente.apelido, '');
   S.cliente.totalPedidos = info.totalPedidos;
   if (!S.cliente.primeiroPedidoEm) S.cliente.primeiroPedidoEm = new Date();
   if (pedido.endereco) S.cliente.ultimoEndereco = pedido.endereco;

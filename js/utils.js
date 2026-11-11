@@ -44,6 +44,7 @@ export const DEFAULT_LOJA = {
   endereco: '',
   horarios: horariosPadrao(),
   fechadoManual: false,
+  entregaAtiva: true,
   taxaEntrega: 0,
   pedidoMinimo: 0,
   pagamentos: ['pix', 'cartao', 'dinheiro'],

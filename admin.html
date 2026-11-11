@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=3">
+  <link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body class="pg-admin">
   <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
@@ -47,7 +47,10 @@
       <section id="v-pedidos" class="view">
         <div class="view-topo">
           <h1>Pedidos</h1>
-          <button type="button" class="btn btn-peq" id="btn-loja-toggle" data-toggle-loja>…</button>
+          <div class="topo-botoes">
+            <button type="button" class="btn btn-peq" id="btn-loja-toggle" data-toggle-loja>…</button>
+            <button type="button" class="btn btn-peq" id="btn-entrega-toggle" data-toggle-entrega>…</button>
+          </div>
         </div>
         <div class="filtros">
           <input type="date" class="input" id="f-data" aria-label="Data">
@@ -88,7 +91,7 @@
       <section id="v-clientes" class="view" hidden>
         <div class="view-topo"><h1>Clientes</h1><span id="cli-resumo" class="pill"></span></div>
         <div class="filtros">
-          <input type="search" class="input" id="cli-busca" placeholder="Buscar por nome ou telefone" aria-label="Buscar cliente">
+          <input type="search" class="input" id="cli-busca" placeholder="Buscar por nome, apelido ou telefone" aria-label="Buscar cliente">
           <select class="input" id="cli-filtro" aria-label="Filtrar">
             <option value="">Todos</option>
             <option value="vip">VIP</option>
@@ -136,6 +139,7 @@
 
           <div class="cartao">
             <h2>🛵 Entrega e pagamento</h2>
+            <button type="button" class="btn btn-bloco" id="cfg-entrega" data-toggle-entrega style="margin-bottom:14px">…</button>
             <div class="linha-campos">
               <label class="campo"><span>Taxa de entrega (R$)</span><input name="taxaEntrega" inputmode="decimal" placeholder="0,00"></label>
               <label class="campo"><span>Pedido mínimo (R$)</span><input name="pedidoMinimo" inputmode="decimal" placeholder="0 = sem mínimo"></label>
@@ -210,6 +214,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="js/admin.js?v=3"></script>
+  <script type="module" src="js/admin.js?v=4"></script>
 </body>
 </html>

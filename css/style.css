@@ -653,3 +653,13 @@ table.res tr:last-child td { border-bottom: 0; }
 /* Aviso quando a página não carrega */
 .falha-carga { position: fixed; inset: 0; z-index: 300; background: var(--fundo); display: grid; place-items: center; padding: 24px 16px; text-align: center; }
 .falha-carga .bv-card { max-width: 420px; }
+
+/* Apelido (opcional) e aviso "hoje só retirada" */
+.campo .opcional { font-weight: 600; color: var(--texto-2); font-size: 0.82rem; }
+.topo-textos .pill { margin: 0 4px 4px 0; }
+.pill-retirada { background: var(--aviso-fundo); color: var(--aviso); }
+.pill-retirada::before { display: none; }
+.segmento label:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
+.segmento small { display: block; font-size: 0.72rem; font-weight: 700; }
+.apelido { color: var(--texto-2); font-weight: 700; }
+.topo-botoes { display: flex; flex-wrap: wrap; gap: 8px; }

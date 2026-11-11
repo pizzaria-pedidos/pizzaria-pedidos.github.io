@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp,
-} from './firebase-config.js?v=3';
+} from './firebase-config.js?v=4';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=3';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=3';
+import * as U from './utils.js?v=4';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=4';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -104,6 +104,7 @@ function iniciarPainel(user) {
     S.loja = U.mesclarLoja(s.data());
     $('#menu-nome').textContent = S.loja.nome;
     renderBotaoLoja();
+    renderBotaoEntrega();
     if (!S.cfgPreenchida) preencherConfig();
     if (S.view === 'clientes') renderClientes();
   }, tratarErro));
@@ -119,6 +120,7 @@ function iniciarPainel(user) {
   S.unsubs.push(onSnapshot(collection(db, 'clientes'), (snap) => {
     S.clientes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     if (S.view === 'clientes') renderClientes();
+    if (S.view === 'pedidos') renderPedidos();
   }, tratarErro));
 
   iniciarCustos({ S, tratarErro, abrirModal, fecharModal, mostrarView });
@@ -275,6 +277,9 @@ function pagamentoTexto(p) {
   return `${p.pagamento === 'pix' ? '⚡' : '💳'} ${U.PAGAMENTOS[p.pagamento] || p.pagamento}`;
 }
 
+const apelidoDe = (tel) => (S.clientes.find((c) => c.id === tel)?.apelido || '').trim();
+const apelidoHTML = (tel) => (apelidoDe(tel) ? ` <span class="apelido">“${esc(apelidoDe(tel))}”</span>` : '');
+
 function pedidoHTML(p, comAcoes = true) {
   const fluxo = U.fluxoStatus(p.tipo);
   const i = fluxo.indexOf(p.status);
@@ -287,7 +292,7 @@ function pedidoHTML(p, comAcoes = true) {
       <span class="pc-hora">${U.fmtHoraMin(U.toDate(p.criadoEm))}${comAcoes ? '' : ` · ${U.fmtData(U.toDate(p.criadoEm))}`}</span>
       <span class="status st-${esc(p.status)}">${U.STATUS[p.status]?.nome || esc(p.status)}</span>
     </div>
-    <div class="pc-cliente">${esc(p.clienteNome)} <small>${U.fmtTel(p.clienteTel)}</small></div>
+    <div class="pc-cliente">${esc(p.clienteNome)}${apelidoHTML(p.clienteTel)} <small>${U.fmtTel(p.clienteTel)}</small></div>
     <div class="pc-bloco">${esc(enderecoTexto(p))}</div>
     ${itensHTML(p.itens || [])}
     <div class="pc-bloco">${esc(pagamentoTexto(p))}</div>
@@ -366,6 +371,23 @@ function renderBotaoLoja() {
   });
 }
 setInterval(() => S.user && renderBotaoLoja(), 60_000);
+
+// ---------- Ligar / desligar entrega (ex.: "hoje só retirada") ----------
+function renderBotaoEntrega() {
+  const on = S.loja.entregaAtiva !== false;
+  $$('[data-toggle-entrega]').forEach((b) => {
+    b.className = `btn ${b.id === 'cfg-entrega' ? 'btn-bloco' : 'btn-peq'} ${on ? 'btn-loja-aberta' : 'btn-loja-fechada'}`;
+    b.textContent = on ? '🛵 Entrega ligada · Desligar' : '🏃 Só retirada hoje · Ligar entrega';
+  });
+}
+$$('[data-toggle-entrega]').forEach((b) => b.addEventListener('click', async () => {
+  const ligar = S.loja.entregaAtiva === false;
+  if (!ligar && !confirm('Desligar a entrega? Os clientes só vão conseguir pedir para RETIRAR no local até você ligar de novo.')) return;
+  try {
+    await setDoc(doc(db, 'config', 'loja'), { entregaAtiva: ligar }, { merge: true });
+    U.toast(ligar ? 'Entrega ligada 🛵' : 'Entrega desligada — só retirada 🏃');
+  } catch (e) { tratarErro(e); U.toast('Erro ao salvar.', 'erro-t'); }
+}));
 $$('[data-toggle-loja]').forEach((b) => b.addEventListener('click', async () => {
   const fechar = !S.loja.fechadoManual;
   if (fechar && !confirm('Fechar a loja agora? Os clientes não vão conseguir finalizar pedidos até você reabrir.')) return;
@@ -753,7 +775,7 @@ function renderClientes() {
   const dig = $('#cli-busca').value.replace(/\D/g, '');
   const filtro = $('#cli-filtro').value;
   let rows = linhasClientes();
-  if (b) rows = rows.filter((r) => U.norm(r.nome).includes(b) || (dig && r.telefone.includes(dig)));
+  if (b) rows = rows.filter((r) => U.norm(`${r.nome} ${r.apelido || ''}`).includes(b) || (dig && r.telefone.includes(dig)));
   if (filtro === 'sumido') rows = rows.filter((r) => r.sumido);
   else if (filtro) rows = rows.filter((r) => r.etq.k === filtro);
 
@@ -774,7 +796,7 @@ function renderClientes() {
 
   $('#tabela-clientes tbody').innerHTML = rows.length
     ? rows.map((r) => `<tr data-cli="${esc(r.id)}" class="${r.sumido ? 'sumido' : ''}">
-        <td><b>${esc(r.nome)}</b> ${r.etq.html} ${r.sumido ? `<span class="tag tag-sumido">sumido há ${r.dias}d</span>` : ''}</td>
+        <td><b>${esc(r.nome)}</b>${apelidoHTML(r.id)} ${r.etq.html} ${r.sumido ? `<span class="tag tag-sumido">sumido há ${r.dias}d</span>` : ''}</td>
         <td>${U.fmtTel(r.telefone)}</td>
         <td class="num">${r.totalPedidos}</td>
         <td class="num">${fmtBRL(r.totalGasto)}</td>
@@ -802,7 +824,7 @@ async function abrirCliente(id) {
   const r = linhasClientes().find((x) => x.id === id);
   if (!r) return;
   const e = r.ultimoEndereco;
-  abrirModal(r.nome, `
+  abrirModal(r.apelido ? `${r.nome} “${r.apelido}”` : r.nome, `
     <p style="margin-bottom:10px">${r.etq.html} ${r.sumido ? `<span class="tag tag-sumido">sumido há ${r.dias} dias</span>` : ''}</p>
     <div class="stats">
       <div class="stat"><small>Pedidos</small><strong>${r.totalPedidos}</strong></div>
