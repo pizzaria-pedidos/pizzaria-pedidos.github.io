@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp,
-} from './firebase-config.js?v=12';
+} from './firebase-config.js?v=14';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=12';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=12';
+import * as U from './utils.js?v=14';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=14';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -360,10 +360,28 @@ function atualizarEsperas() {
 }
 setInterval(atualizarEsperas, 20_000);
 
+/** Duração entre duas datas: "32 min" ou "1h05" */
+function duracao(a, b) {
+  const min = Math.max(0, Math.round((b - a) / 60000));
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+}
+/** Tempos registrados do pedido: quanto levou para ficar pronto e para ser concluído */
+function temposHTML(p) {
+  const c = U.toDate(p.criadoEm), pr = U.toDate(p.prontoEm), co = U.toDate(p.concluidoEm);
+  if (!c || (!pr && !co)) return '';
+  const partes = [];
+  if (pr) partes.push(`✅ ficou pronto em <b>${duracao(c, pr)}</b>`);
+  if (co) partes.push(`🏁 concluído em <b>${duracao(c, co)}</b>`);
+  return `<div class="pc-tempos">${partes.join(' · ')}</div>`;
+}
+
 function pedidoHTML(p, comAcoes = true) {
   const fluxo = U.fluxoStatus(p.tipo);
   const i = fluxo.indexOf(p.status);
   const proximo = i >= 0 && i < fluxo.length - 1 ? fluxo[i + 1] : null;
+  // "Pedido pronto": avisa o cliente no WhatsApp e muda para Saiu p/ entrega / Pronto p/ retirada
+  const statusPronto = p.tipo === 'retirada' ? 'pronto' : 'saiu';
+  const podePronto = ['novo', 'preparo'].includes(p.status);
   const opcoes = [...fluxo, 'cancelado']
     .map((s) => `<option value="${s}" ${s === p.status ? 'selected' : ''}>${U.STATUS[s].nome}</option>`).join('');
   return `<article class="pedido-card ${esc(p.status)}">
@@ -373,6 +391,7 @@ function pedidoHTML(p, comAcoes = true) {
       <span class="status st-${esc(p.status)}">${U.STATUS[p.status]?.nome || esc(p.status)}</span>
     </div>
     ${comAcoes && EM_ANDAMENTO.includes(p.status) && U.toDate(p.criadoEm) ? `<div class="pc-espera" data-desde="${U.toDate(p.criadoEm).getTime()}" data-tipo="${esc(p.tipo)}"></div>` : ''}
+    ${temposHTML(p)}
     <div class="pc-cliente">${esc(p.clienteNome)}${apelidoHTML(p.clienteTel)} <small>${U.fmtTel(p.clienteTel)}</small></div>
     ${comAcoes ? historicoClienteHTML(p.clienteTel, p.id) : ''}
     <div class="pc-bloco">${esc(enderecoTexto(p))}</div>
@@ -380,11 +399,20 @@ function pedidoHTML(p, comAcoes = true) {
     <div class="pc-bloco">${esc(pagamentoTexto(p))}</div>
     <div class="pc-total"><span>Total${p.taxaEntrega ? ` <small style="font-weight:600">(entrega ${fmtBRL(p.taxaEntrega)})</small>` : ''}</span><span>${fmtBRL(p.total)}</span></div>
     ${comAcoes ? `<div class="pc-acoes">
-      ${proximo ? `<button type="button" class="btn btn-primario btn-peq" data-avancar="${esc(p.id)}" data-para="${proximo}">${U.STATUS[proximo].nome} →</button>` : ''}
+      ${podePronto ? `<button type="button" class="btn btn-pronto btn-peq" data-pronto="${esc(p.id)}" title="Abre o WhatsApp do cliente com o aviso e muda o status">✅ Pedido pronto</button>` : ''}
+      ${proximo && proximo !== statusPronto ? `<button type="button" class="btn btn-primario btn-peq" data-avancar="${esc(p.id)}" data-para="${proximo}">${U.STATUS[proximo].nome} →</button>` : ''}
       <select data-status="${esc(p.id)}" aria-label="Mudar status">${opcoes}</select>
       <a class="btn btn-whats btn-peq" href="https://wa.me/${esc(p.clienteTel)}" target="_blank" rel="noopener">WhatsApp</a>
     </div>` : ''}
   </article>`;
+}
+
+/** Média de tempo até "pronto" dos pedidos que já ficaram prontos */
+function preparoMedio(lista) {
+  const ts = lista.map((p) => [U.toDate(p.criadoEm), U.toDate(p.prontoEm)]).filter(([c, pr]) => c && pr).map(([c, pr]) => pr - c);
+  if (!ts.length) return '—';
+  const media = ts.reduce((a, b) => a + b, 0) / ts.length;
+  return duracao(0, media);
 }
 
 function renderPedidos(carregando = false) {
@@ -394,7 +422,8 @@ function renderPedidos(carregando = false) {
   $('#stats').innerHTML = `
     <div class="stat"><small>Pedidos</small><strong>${validos.length}</strong></div>
     <div class="stat"><small>Faturamento</small><strong>${fmtBRL(fat)}</strong></div>
-    <div class="stat"><small>Ticket médio</small><strong>${fmtBRL(validos.length ? fat / validos.length : 0)}</strong></div>`;
+    <div class="stat"><small>Ticket médio</small><strong>${fmtBRL(validos.length ? fat / validos.length : 0)}</strong></div>
+    <div class="stat"><small>⏱️ Preparo médio</small><strong>${preparoMedio(validos)}</strong></div>`;
   const filtro = $('#f-status').value;
   const lista = S.pedidos.filter((p) => !filtro || p.status === filtro);
   const el = $('#lista-pedidos-admin');
@@ -416,7 +445,11 @@ async function mudarStatus(id, novo) {
     return;
   }
   const batch = writeBatch(db);
-  batch.update(doc(db, 'pedidos', id), { status: novo, atualizadoEm: serverTimestamp() });
+  // registra a hora em que ficou pronto e em que foi concluído (para saber quanto tempo levou)
+  const upd = { status: novo, atualizadoEm: serverTimestamp() };
+  if (['saiu', 'pronto'].includes(novo) && !p.prontoEm) upd.prontoEm = serverTimestamp();
+  if (novo === 'concluido' && !p.concluidoEm) upd.concluidoEm = serverTimestamp();
+  batch.update(doc(db, 'pedidos', id), upd);
   // pedido cancelado não conta nas estatísticas do cliente
   const cli = doc(db, 'clientes', p.clienteTel);
   if (novo === 'cancelado' && p.status !== 'cancelado') {
@@ -433,9 +466,22 @@ async function mudarStatus(id, novo) {
   }
 }
 $('#lista-pedidos-admin').addEventListener('click', (e) => {
+  const pr = e.target.closest('[data-pronto]');
+  if (pr) return avisarPronto(pr.dataset.pronto);
   const b = e.target.closest('[data-avancar]');
   if (b) mudarStatus(b.dataset.avancar, b.dataset.para);
 });
+
+/** Abre o WhatsApp do cliente com a mensagem de "pedido pronto" e muda o status */
+function avisarPronto(id) {
+  const p = S.pedidos.find((x) => x.id === id);
+  if (!p) return;
+  const nome = apelidoDe(p.clienteTel) || String(p.clienteNome || '').split(' ')[0];
+  const msg = U.mensagemPronto(S.loja, p, { nome, codigo: U.codigoPedido(p.id) });
+  // abre primeiro (precisa ser no mesmo toque, senão o navegador bloqueia)
+  window.open(`https://wa.me/${p.clienteTel}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+  mudarStatus(p.id, p.tipo === 'retirada' ? 'pronto' : 'saiu');
+}
 $('#lista-pedidos-admin').addEventListener('change', (e) => {
   if (e.target.dataset.status) mudarStatus(e.target.dataset.status, e.target.value);
 });
@@ -1212,6 +1258,8 @@ function preencherConfig() {
   f.elements.tempoEntrega.value = l.tempoEntrega || '';
   f.elements.tempoRetirada.value = l.tempoRetirada || '';
   f.elements.chavePix.value = l.chavePix;
+  f.elements.msgProntoEntrega.value = l.msgProntoEntrega || U.MSG_PRONTO_PADRAO.entrega;
+  f.elements.msgProntoRetirada.value = l.msgProntoRetirada || U.MSG_PRONTO_PADRAO.retirada;
   f.elements.ocultarIndisponiveis.checked = !!l.ocultarIndisponiveis;
   f.elements.limiteRecorrente.value = l.limiteRecorrente;
   f.elements.limiteVip.value = l.limiteVip;
@@ -1261,6 +1309,8 @@ $('#form-config').addEventListener('submit', async (e) => {
     tempoRetirada: f.elements.tempoRetirada.value.trim().slice(0, 40),
     pagamentos,
     chavePix: f.elements.chavePix.value.trim(),
+    msgProntoEntrega: f.elements.msgProntoEntrega.value.trim().slice(0, 600),
+    msgProntoRetirada: f.elements.msgProntoRetirada.value.trim().slice(0, 600),
     regraPrecoPizza: f.elements.regraPrecoPizza.value,
     ocultarIndisponiveis: f.elements.ocultarIndisponiveis.checked,
     limiteRecorrente: int(f.elements.limiteRecorrente.value, 2),

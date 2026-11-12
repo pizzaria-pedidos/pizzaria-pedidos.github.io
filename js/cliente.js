@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=12';
-import * as U from './utils.js?v=12';
+} from './firebase-config.js?v=14';
+import * as U from './utils.js?v=14';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -206,7 +206,11 @@ function mostrarBoasVindas(tel = '') {
   $('#id-nome').value = '';
   $('#id-apelido').value = '';
   $('#id-erro').textContent = '';
-  setTimeout(() => (tel ? $('#id-nome') : $('#id-tel')).focus(), 50);
+  // põe o cursor no primeiro campo — só se a pessoa ainda não estiver digitando em outro
+  setTimeout(() => {
+    const ativo = document.activeElement;
+    if (!ativo || ativo === document.body || !$('#tela-boasvindas').contains(ativo)) (tel ? $('#id-nome') : $('#id-tel')).focus();
+  }, 50);
 }
 
 /** Como chamar o cliente: o apelido, se tiver; senão o primeiro nome */
@@ -946,6 +950,8 @@ async function registrarPedido(pedido) {
       ultimosPedidos: [pedRef.id, ...(cli?.ultimosPedidos || [])].slice(0, 20),
     };
     if (pedido.endereco) dados.ultimoEndereco = pedido.endereco;
+    // apelido vai junto com o pedido (não se perde se a página sair rápido para o WhatsApp)
+    if (S.cliente?.apelido) dados.apelido = S.cliente.apelido;
     if (!cli) {
       tx.set(cliRef, { ...dados, criadoEm: serverTimestamp(), primeiroPedidoEm: serverTimestamp() });
     } else {
@@ -1033,7 +1039,6 @@ $('#btn-finalizar').addEventListener('click', async () => {
   }
 
   // atualiza dados locais do cliente
-  if (info.numero && S.cliente.apelido) salvarApelido(S.cliente.tel, S.cliente.apelido, '');
   S.cliente.totalPedidos = info.totalPedidos;
   if (!S.cliente.primeiroPedidoEm) S.cliente.primeiroPedidoEm = new Date();
   if (pedido.endereco) S.cliente.ultimoEndereco = pedido.endereco;

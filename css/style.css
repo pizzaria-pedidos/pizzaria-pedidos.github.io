@@ -724,3 +724,13 @@ table.res tr:last-child td { border-bottom: 0; }
 .lista-sons { border: 1px solid var(--borda); border-radius: var(--raio-peq); padding: 2px 12px; background: var(--superficie); }
 .som-linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--borda); }
 .som-linha:last-child { border-bottom: 0; }
+
+/* Botão "Pedido pronto" */
+.btn-pronto { background: var(--ok); color: #fff; }
+.btn-pronto:hover:not(:disabled) { filter: brightness(0.92); }
+
+/* Tempos registrados do pedido + 4 números no topo */
+.pc-tempos { font-size: 0.85rem; color: var(--texto-2); font-weight: 600; }
+.pc-tempos b { color: var(--texto); }
+.stats { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 700px) { .stats { grid-template-columns: repeat(2, 1fr); } }

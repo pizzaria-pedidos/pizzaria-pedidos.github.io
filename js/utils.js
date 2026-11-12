@@ -66,6 +66,8 @@ export const DEFAULT_LOJA = {
   tempoRetirada: '',  // ex.: "20 a 30 minutos"
   pagamentos: ['pix', 'cartao', 'dinheiro'],
   chavePix: '',
+  msgProntoEntrega: '',   // vazio = usa MSG_PRONTO_PADRAO.entrega
+  msgProntoRetirada: '',  // vazio = usa MSG_PRONTO_PADRAO.retirada
   regraPrecoPizza: 'maior',
   ocultarIndisponiveis: false,
   limiteRecorrente: 2,
@@ -274,6 +276,21 @@ export function comprimirImagem(arquivo, max = 640, limiteKB = 120) {
 /** Tempo de espera configurado no painel para o tipo do pedido ('' = não mostrar) */
 export function tempoEspera(loja, tipo) {
   return String((tipo === 'retirada' ? loja.tempoRetirada : loja.tempoEntrega) || '').trim();
+}
+
+// ---------- Aviso "pedido pronto" (o dono envia ao cliente pelo WhatsApp) ----------
+export const MSG_PRONTO_PADRAO = {
+  entrega: 'Olá, {nome}! 🍕 Seu pedido {codigo} já está pronto e o motoboy já está a caminho. Obrigado pela preferência!',
+  retirada: 'Olá, {nome}! 🍕 Seu pedido {codigo} já está pronto. Pode vir até o local retirar o seu pedido. Por favor, avise quando estiver a caminho. Obrigado!',
+};
+/** Troca {nome}, {codigo} e {total} na mensagem configurada para o tipo do pedido */
+export function mensagemPronto(loja, pedido, dados) {
+  const tipo = pedido.tipo === 'retirada' ? 'retirada' : 'entrega';
+  const modelo = String((tipo === 'retirada' ? loja.msgProntoRetirada : loja.msgProntoEntrega) || '').trim() || MSG_PRONTO_PADRAO[tipo];
+  return modelo
+    .replace(/\{nome\}/gi, dados.nome || '')
+    .replace(/\{codigo\}/gi, dados.codigo || '')
+    .replace(/\{total\}/gi, fmtBRL(pedido.total));
 }
 
 let toastTimer;

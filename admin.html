@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=12">
+  <link rel="stylesheet" href="css/style.css?v=14">
 </head>
 <body class="pg-admin">
   <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
@@ -157,6 +157,14 @@
           </div>
 
           <div class="cartao">
+            <h2>📲 Aviso de pedido pronto</h2>
+            <p class="cu-dica" style="margin-bottom:12px">Quando você toca em <b>✅ Pedido pronto</b> no card do pedido, o WhatsApp do cliente abre com esta mensagem (você ainda pode mudar antes de enviar).<br>
+              Use <b>{nome}</b> (apelido ou primeiro nome), <b>{codigo}</b> (código do pedido) e <b>{total}</b>. Em branco = mensagem padrão.</p>
+            <label class="campo"><span>🛵 Pedido de entrega</span><textarea name="msgProntoEntrega" maxlength="600" rows="3"></textarea></label>
+            <label class="campo"><span>🏃 Pedido de retirada</span><textarea name="msgProntoRetirada" maxlength="600" rows="3"></textarea></label>
+          </div>
+
+          <div class="cartao">
             <h2>📋 Cardápio</h2>
             <label class="campo"><span>Preço da pizza com vários sabores</span>
               <select name="regraPrecoPizza" id="cfg-regra"></select>
@@ -221,6 +229,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="js/admin.js?v=12"></script>
+  <script type="module" src="js/admin.js?v=14"></script>
 </body>
 </html>
