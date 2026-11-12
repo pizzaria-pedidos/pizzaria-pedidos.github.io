@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp,
-} from './firebase-config.js?v=4';
+} from './firebase-config.js?v=5';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=4';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=4';
+import * as U from './utils.js?v=5';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=5';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -220,11 +220,11 @@ function ouvirNovos() {
         if (!snap.metadata.fromCache) pronto = true; // ignora o que já existia ao abrir
         return;
       }
-      const chegaram = snap.docChanges().filter((c) => c.type === 'added').map((c) => c.doc.data());
+      const chegaram = snap.docChanges().filter((c) => c.type === 'added').map((c) => ({ id: c.doc.id, ...c.doc.data() }));
       if (chegaram.length) {
         tocarAlerta();
         const p = chegaram[0];
-        U.toast(`🍕 Novo pedido ${U.numPedido(p.numero)} — ${p.clienteNome}`);
+        U.toast(`🍕 Novo pedido ${U.codigoPedido(p.id)} — ${p.clienteNome}`);
       }
     },
     tratarErro,
@@ -280,6 +280,22 @@ function pagamentoTexto(p) {
 const apelidoDe = (tel) => (S.clientes.find((c) => c.id === tel)?.apelido || '').trim();
 const apelidoHTML = (tel) => (apelidoDe(tel) ? ` <span class="apelido">“${esc(apelidoDe(tel))}”</span>` : '');
 
+/**
+ * Só no painel: qual pedido deste cliente é este (1º, 2º, 8º…), desde quando
+ * ele compra e quanto já gastou. A posição vem da lista dos últimos pedidos
+ * que fica no cadastro do cliente (mais novo primeiro).
+ */
+function historicoClienteHTML(tel, pedidoId) {
+  const c = S.clientes.find((x) => x.id === tel);
+  if (!c) return '';
+  const n = c.totalPedidos || 0;
+  const i = (c.ultimosPedidos || []).indexOf(pedidoId);
+  const ordem = Math.max(1, i >= 0 ? n - i : n);
+  if (ordem === 1) return '<div class="pc-hist"><span class="tag tag-novo">🆕 Cliente novo · 1º pedido</span></div>';
+  const desde = U.fmtMesAno(U.toDate(c.primeiroPedidoEm) || U.toDate(c.criadoEm));
+  return `<div class="pc-hist">${etiqueta(c).html} <span>⭐ ${ordem}º pedido${desde ? ` · cliente desde ${desde}` : ''} · já gastou ${fmtBRL(c.totalGasto || 0)}</span></div>`;
+}
+
 function pedidoHTML(p, comAcoes = true) {
   const fluxo = U.fluxoStatus(p.tipo);
   const i = fluxo.indexOf(p.status);
@@ -288,11 +304,12 @@ function pedidoHTML(p, comAcoes = true) {
     .map((s) => `<option value="${s}" ${s === p.status ? 'selected' : ''}>${U.STATUS[s].nome}</option>`).join('');
   return `<article class="pedido-card ${esc(p.status)}">
     <div class="pc-topo">
-      <span class="pc-num">${U.numPedido(p.numero) || '—'}</span>
+      <span class="pc-num">${U.codigoPedido(p.id)}</span>
       <span class="pc-hora">${U.fmtHoraMin(U.toDate(p.criadoEm))}${comAcoes ? '' : ` · ${U.fmtData(U.toDate(p.criadoEm))}`}</span>
       <span class="status st-${esc(p.status)}">${U.STATUS[p.status]?.nome || esc(p.status)}</span>
     </div>
     <div class="pc-cliente">${esc(p.clienteNome)}${apelidoHTML(p.clienteTel)} <small>${U.fmtTel(p.clienteTel)}</small></div>
+    ${comAcoes ? historicoClienteHTML(p.clienteTel, p.id) : ''}
     <div class="pc-bloco">${esc(enderecoTexto(p))}</div>
     ${itensHTML(p.itens || [])}
     <div class="pc-bloco">${esc(pagamentoTexto(p))}</div>
@@ -328,7 +345,7 @@ function renderPedidos(carregando = false) {
 async function mudarStatus(id, novo) {
   const p = S.pedidos.find((x) => x.id === id);
   if (!p || p.status === novo) return;
-  if (novo === 'cancelado' && !confirm(`Cancelar o pedido ${U.numPedido(p.numero)} de ${p.clienteNome}?`)) {
+  if (novo === 'cancelado' && !confirm(`Cancelar o pedido ${U.codigoPedido(p.id)} de ${p.clienteNome}?`)) {
     renderPedidos();
     return;
   }
@@ -343,7 +360,7 @@ async function mudarStatus(id, novo) {
   }
   try {
     await batch.commit();
-    U.toast(`${U.numPedido(p.numero)} → ${U.STATUS[novo].nome}`);
+    U.toast(`Pedido ${U.codigoPedido(p.id)} → ${U.STATUS[novo].nome}`);
   } catch (e) {
     tratarErro(e);
     U.toast('Não foi possível atualizar o status.', 'erro-t');

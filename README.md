@@ -23,6 +23,10 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
   - Apelido opcional na entrada do cliente.
   - Botão de **ligar e desligar a entrega**, no topo de Pedidos e em Ajustes.
   - Versão dos arquivos `?v=4`.
+- **Novidades de 12/11/2026:**
+  - Número **aleatório** do pedido ("Número do seu pedido: 8218").
+  - Histórico do cliente (1º pedido, 8º pedido…) só no painel, fora da mensagem do WhatsApp.
+  - Versão dos arquivos `?v=5`.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
 ```
@@ -123,6 +127,8 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
 
 - **Pedidos:** deixe o painel aberto (PC ou celular). Quando chega um pedido novo, toca um alerta. No primeiro acesso, toque na faixa vermelha "ativar o som", porque o navegador só libera áudio depois de um toque. Avance o status com o botão principal. Cancelar um pedido desconta ele das estatísticas do cliente.
 - **Acabou um ingrediente:** em **Cardápio → Sabores**, busque, por exemplo, "catupiry" e toque em **Desativar todos**. Para um item só, use a chavinha. O site do cliente atualiza na hora, sem recarregar.
+- **Número do pedido:** cada pedido recebe um número **aleatório de 4 dígitos** (ex.: 8218). A mensagem do WhatsApp começa com "🍕 *Número do seu pedido: 8218*", e o mesmo número aparece no card do painel, no Balanço e em "Meus pedidos" do cliente. Por baixo existe um contador interno (#0001, #0002…), mas ele não é mostrado a ninguém. O número aleatório é calculado a partir do ID do pedido, então não precisou mudar as regras.
+- **Histórico do cliente só no painel:** a mensagem do WhatsApp **não** mostra "cliente novo / 1º pedido". No painel, cada card de pedido mostra "🆕 Cliente novo · 1º pedido" ou "⭐ 8º pedido · cliente desde 03/2026 · já gastou R$ X".
 - **Hoje sem entrega:** toque em **🛵 Entrega ligada · Desligar**, no topo de Pedidos ou em Ajustes. O cliente vê "🏃 Hoje só retirada no local", a opção Entrega fica bloqueada e o pedido vai como retirada, sem taxa. Toque de novo para religar. Vale até você religar.
 - **Apelido do cliente:** na entrada, além do WhatsApp e do nome, o cliente pode informar um **apelido (opcional)**. O site cumprimenta pelo apelido ("Olá, Joãozinho!"), a mensagem do WhatsApp mostra "João Silva (Joãozinho)" e o painel mostra o apelido nos pedidos e em Clientes. A busca também procura pelo apelido.
 - **Esconder o que está desligado:** por padrão, produto ou sabor desligado aparece **acinzentado** para o cliente. Para ele **sumir**, marque **Ajustes → Cardápio → "Esconder itens indisponíveis"** e salve. Isso vale para tudo: produtos (ex.: a Pizza Média) e sabores esgotados.
@@ -177,5 +183,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=4` → `?v=5` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=5` → `?v=6` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

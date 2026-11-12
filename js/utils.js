@@ -106,6 +106,19 @@ export const fmtBRL = (v) =>
   (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 export const numPedido = (n) => (n ? `#${String(n).padStart(4, '0')}` : '');
 
+/**
+ * Número do pedido mostrado ao cliente e no painel: 4 dígitos "aleatórios"
+ * (1000–9999), calculados a partir do ID do pedido — que o Firebase já gera
+ * aleatório. Assim o número é sempre o mesmo no WhatsApp, no site e no painel,
+ * sem precisar gravar nada a mais (nem mudar as regras do Firestore).
+ */
+export function codigoPedido(id) {
+  if (!id) return '';
+  let h = 2166136261;
+  for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return String(1000 + (h % 9000));
+}
+
 /** "8,50" / "8.50" / "R$ 8,50" → 8.5 */
 export function parseMoney(s) {
   let t = String(s ?? '').replace(/[^\d.,-]/g, '');

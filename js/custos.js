@@ -9,8 +9,8 @@
 // =====================================================================
 import {
   db, doc, setDoc, onSnapshot, collection, query, where, writeBatch, Timestamp, serverTimestamp,
-} from './firebase-config.js?v=4';
-import * as U from './utils.js?v=4';
+} from './firebase-config.js?v=5';
+import * as U from './utils.js?v=5';
 
 const { esc, fmtBRL: brl } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -626,7 +626,7 @@ function renderBalanco() {
     const c = calcs[i];
     h += `<div class="cartao cli-card" style="--h:${corCliente(x.clienteTel)}">
       <div class="cli-head"><span class="cli-av">${esc(iniciais(x.clienteNome))}</span>
-        <div><b class="cli-nm">${esc(x.clienteNome)}</b><small>Pedido ${U.numPedido(x.numero)} · ${U.fmtHoraMin(U.toDate(x.criadoEm))}</small></div></div>
+        <div><b class="cli-nm">${esc(x.clienteNome)}</b><small>Pedido ${U.codigoPedido(x.id)} · ${U.fmtHoraMin(U.toDate(x.criadoEm))}</small></div></div>
       ${c.linhas.map((l) => `<div class="bal"><div>${l.qtd}x ${esc(l.desc)}</div>
         <small>custou <b>${brl(l.custo)}</b> · vendeu <b>${brl(l.venda)}</b> · lucro <b class="${l.venda - l.custo < 0 ? 'neg' : 'okc'}">${brl(l.venda - l.custo)}</b></small>
         ${l.aviso ? `<small class="warnc">⚠️ ${esc(l.aviso)}</small>` : ''}</div>`).join('')}

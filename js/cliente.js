@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=4';
-import * as U from './utils.js?v=4';
+} from './firebase-config.js?v=5';
+import * as U from './utils.js?v=5';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -903,20 +903,17 @@ async function registrarPedido(pedido) {
       tx.update(cliRef, dados);
     }
     const desde = U.toDate(cli?.primeiroPedidoEm) || new Date();
-    return { numero, totalPedidos, desde };
+    return { numero, codigo: U.codigoPedido(pedRef.id), totalPedidos, desde };
   });
 }
 
 const SEP = '━━━━━━━━━━━━━━';
 function montarMensagem(p, info) {
   const L = [];
-  L.push(`🍕 *NOVO PEDIDO${info.numero ? ' ' + U.numPedido(info.numero) : ''}*`, '');
+  L.push(info.codigo ? `🍕 *Número do seu pedido: ${info.codigo}*` : '🍕 *Seu pedido*', '');
   const apelido = (S.cliente?.apelido || '').trim();
   L.push(`👤 *Cliente:* ${p.clienteNome}${apelido ? ` (${apelido})` : ''}`);
   L.push(`📱 *WhatsApp:* ${U.fmtTel(p.clienteTel)}`);
-  L.push(info.totalPedidos <= 1
-    ? '⭐ Cliente novo · 1º pedido'
-    : `⭐ Cliente desde ${U.fmtMesAno(info.desde)} · ${info.totalPedidos}º pedido`);
   L.push('', SEP);
   p.itens.forEach((it, i) => {
     if (i) L.push('');
@@ -998,7 +995,7 @@ $('#btn-finalizar').addEventListener('click', async () => {
 
   fecharTodasCamadas();
   $('#sucesso-link').href = url;
-  $('#sucesso-texto').innerHTML = `${info.numero ? `Pedido <b>${U.numPedido(info.numero)}</b>. ` : ''}Estamos abrindo o WhatsApp com o resumo. É só tocar em <b>enviar</b> ➤`;
+  $('#sucesso-texto').innerHTML = `${info.codigo ? `Número do seu pedido: <b>${info.codigo}</b>. ` : ''}Estamos abrindo o WhatsApp com o resumo. É só tocar em <b>enviar</b> ➤`;
   $('#tela-sucesso').hidden = false;
   setTimeout(() => { window.location.href = url; }, 400);
 });
@@ -1050,7 +1047,7 @@ async function carregarMeusPedidos() {
     const st = U.STATUS[p.status] || U.STATUS.novo;
     const resumo = p.itens.map((i) => `${i.qtd}x ${i.nome}`).join(', ');
     return `<article class="pedido-hist">
-      <div class="ph-topo"><strong>Pedido ${U.numPedido(p.numero)}</strong><span class="status st-${esc(p.status)}">${st.cliente}</span></div>
+      <div class="ph-topo"><strong>Pedido ${U.codigoPedido(p.id)}</strong><span class="status st-${esc(p.status)}">${st.cliente}</span></div>
       <small>${U.fmtDataHora(U.toDate(p.criadoEm))} · ${p.tipo === 'entrega' ? 'Entrega' : 'Retirada'}</small>
       <p class="ph-itens">${esc(resumo)}</p>
       <div class="ph-rodape"><strong>${fmtBRL(p.total)}</strong>
