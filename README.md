@@ -42,6 +42,10 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
   - Foto da galeria em produtos, sabores e logo (o painel diminui a foto sozinho; sem Storage).
   - Foto do sabor também aparece em "Nossos sabores".
   - Versão dos arquivos `?v=9`.
+- **Ajuste de 12/11/2026:**
+  - Pagamento "Cartão" sem o "(na entrega)", que não fazia sentido na retirada.
+  - A chave Pix é enviada pelo WhatsApp Business; o campo de chave Pix em Ajustes é opcional.
+  - Versão dos arquivos `?v=10`.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
 ```
@@ -215,5 +219,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=9` → `?v=10` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=10` → `?v=11` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

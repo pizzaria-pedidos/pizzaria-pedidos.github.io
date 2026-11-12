@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=9';
-import * as U from './utils.js?v=9';
+} from './firebase-config.js?v=10';
+import * as U from './utils.js?v=10';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);

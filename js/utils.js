@@ -6,7 +6,7 @@ export const DIAS_NOME = {
   dom: 'Domingo', seg: 'Segunda', ter: 'Terça', qua: 'Quarta', qui: 'Quinta', sex: 'Sexta', sab: 'Sábado',
 };
 
-export const PAGAMENTOS = { pix: 'Pix', cartao: 'Cartão (na entrega)', dinheiro: 'Dinheiro' };
+export const PAGAMENTOS = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
 
 export const STATUS = {
   novo:      { nome: 'Novo',               cliente: 'Recebido' },
