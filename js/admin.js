@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp,
-} from './firebase-config.js?v=14';
+} from './firebase-config.js?v=15';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=14';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=14';
+import * as U from './utils.js?v=15';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=15';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -283,7 +283,7 @@ function ouvirDia() {
       orderBy('criadoEm', 'desc'),
     ),
     (snap) => {
-      S.pedidos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      S.pedidos = snap.docs.map((d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }));
       S.pedidosOk = true;
       renderPedidos();
     },
@@ -333,7 +333,8 @@ function historicoClienteHTML(tel, pedidoId) {
 }
 
 // ---------- Tempo desde que o pedido foi feito (só pedidos em andamento) ----------
-const EM_ANDAMENTO = ['novo', 'preparo', 'saiu', 'pronto'];
+// Cronômetro: corre desde que o pedido chega até você tocar em "✅ Pedido pronto"
+const AGUARDANDO = ['novo', 'preparo'];
 /** "40 a 60 minutos" → 60 · "1h30" → 90 · "1 hora" → 60 · texto vazio → 0 */
 function minutosMax(txt) {
   const s = U.norm(txt);
@@ -342,55 +343,65 @@ function minutosMax(txt) {
   while ((x = re.exec(s))) max = Math.max(max, x[1] ? Number(x[1]) * 60 + Number(x[2] || 0) : Number(x[3]));
   return max;
 }
-function textoEspera(ms) {
-  const min = Math.floor((Date.now() - ms) / 60000);
-  if (min < 1) return 'agora mesmo';
-  if (min < 60) return `há ${min} min`;
-  return `há ${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+/** milissegundos → "12:34" (min:seg) ou "1:02:03" (h:min:seg) */
+function relogio(ms) {
+  const t = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), seg = t % 60;
+  const dd = (n) => String(n).padStart(2, '0');
+  return h ? `${h}:${dd(m)}:${dd(seg)}` : `${m}:${dd(seg)}`;
 }
 function atualizarEsperas() {
   document.querySelectorAll('[data-desde]').forEach((el) => {
-    const ms = Number(el.dataset.desde);
-    const min = (Date.now() - ms) / 60000;
+    const passou = Date.now() - Number(el.dataset.desde);
+    const min = passou / 60000;
     const limite = minutosMax(U.tempoEspera(S.loja, el.dataset.tipo));
     el.classList.toggle('alerta', !!limite && min >= limite * 0.8 && min <= limite);
     el.classList.toggle('atrasado', !!limite && min > limite);
-    el.textContent = `⏱️ ${textoEspera(ms)}${limite && min > limite ? ' · atrasado' : ''}`;
+    el.textContent = `⏱️ ${relogio(passou)}${limite && min > limite ? ' · atrasado' : ''}`;
   });
 }
-setInterval(atualizarEsperas, 20_000);
+setInterval(atualizarEsperas, 1000);
 
-/** Duração entre duas datas: "32 min" ou "1h05" */
-function duracao(a, b) {
-  const min = Math.max(0, Math.round((b - a) / 60000));
-  return min < 60 ? `${min} min` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
-}
-/** Tempos registrados do pedido: quanto levou para ficar pronto e para ser concluído */
+/** Duração entre duas datas, em min:seg */
+const duracao = (a, b) => relogio(b - a);
+/** Tempos registrados: quanto levou para ficar pronto e quando o cliente foi avisado */
 function temposHTML(p) {
-  const c = U.toDate(p.criadoEm), pr = U.toDate(p.prontoEm), co = U.toDate(p.concluidoEm);
-  if (!c || (!pr && !co)) return '';
+  const c = U.toDate(p.criadoEm), pr = U.toDate(p.prontoEm), inf = U.toDate(p.informadoEm), co = U.toDate(p.concluidoEm);
+  if (!c || (!pr && !inf && !co)) return '';
   const partes = [];
   if (pr) partes.push(`✅ ficou pronto em <b>${duracao(c, pr)}</b>`);
-  if (co) partes.push(`🏁 concluído em <b>${duracao(c, co)}</b>`);
+  if (inf) partes.push(`📲 cliente avisado às <b>${U.fmtHoraMin(inf)}</b>`);
+  else if (co && !pr) partes.push(`🏁 concluído em <b>${duracao(c, co)}</b>`);
   return `<div class="pc-tempos">${partes.join(' · ')}</div>`;
+}
+/** Link do WhatsApp do cliente já com a mensagem de "pedido pronto" */
+function linkInformar(p) {
+  const nome = apelidoDe(p.clienteTel) || String(p.clienteNome || '').split(' ')[0];
+  const msg = U.mensagemPronto(S.loja, p, { nome, codigo: U.codigoPedido(p.id) });
+  return `https://wa.me/${p.clienteTel}?text=${encodeURIComponent(msg)}`;
 }
 
 function pedidoHTML(p, comAcoes = true) {
   const fluxo = U.fluxoStatus(p.tipo);
-  const i = fluxo.indexOf(p.status);
-  const proximo = i >= 0 && i < fluxo.length - 1 ? fluxo[i + 1] : null;
-  // "Pedido pronto": avisa o cliente no WhatsApp e muda para Saiu p/ entrega / Pronto p/ retirada
-  const statusPronto = p.tipo === 'retirada' ? 'pronto' : 'saiu';
-  const podePronto = ['novo', 'preparo'].includes(p.status);
   const opcoes = [...fluxo, 'cancelado']
-    .map((s) => `<option value="${s}" ${s === p.status ? 'selected' : ''}>${U.STATUS[s].nome}</option>`).join('');
+    .map((st) => `<option value="${st}" ${st === p.status ? 'selected' : ''}>${U.STATUS[st].nome}</option>`).join('');
+  const correndo = AGUARDANDO.includes(p.status) && !U.toDate(p.prontoEm) && U.toDate(p.criadoEm);
+  // 1 botão principal: ✅ Pedido pronto → 📲 Informar cliente → (concluído) avisar de novo
+  let principal = '';
+  if (AGUARDANDO.includes(p.status)) {
+    principal = `<button type="button" class="btn btn-pronto" data-pronto="${esc(p.id)}">✅ Pedido pronto</button>`;
+  } else if (['saiu', 'pronto'].includes(p.status)) {
+    principal = `<a class="btn btn-whats" data-informar="${esc(p.id)}" href="${esc(linkInformar(p))}" target="_blank" rel="noopener">📲 Informar cliente</a>`;
+  } else if (p.status === 'concluido') {
+    principal = `<a class="btn btn-sec btn-peq" data-reavisar="${esc(p.id)}" href="${esc(linkInformar(p))}" target="_blank" rel="noopener">📲 Avisar de novo</a>`;
+  }
   return `<article class="pedido-card ${esc(p.status)}">
     <div class="pc-topo">
       <span class="pc-num">${U.codigoPedido(p.id)}</span>
       <span class="pc-hora">${U.fmtHoraMin(U.toDate(p.criadoEm))}${comAcoes ? '' : ` · ${U.fmtData(U.toDate(p.criadoEm))}`}</span>
       <span class="status st-${esc(p.status)}">${U.STATUS[p.status]?.nome || esc(p.status)}</span>
     </div>
-    ${comAcoes && EM_ANDAMENTO.includes(p.status) && U.toDate(p.criadoEm) ? `<div class="pc-espera" data-desde="${U.toDate(p.criadoEm).getTime()}" data-tipo="${esc(p.tipo)}"></div>` : ''}
+    ${comAcoes && correndo ? `<div class="pc-espera" data-desde="${U.toDate(p.criadoEm).getTime()}" data-tipo="${esc(p.tipo)}"></div>` : ''}
     ${temposHTML(p)}
     <div class="pc-cliente">${esc(p.clienteNome)}${apelidoHTML(p.clienteTel)} <small>${U.fmtTel(p.clienteTel)}</small></div>
     ${comAcoes ? historicoClienteHTML(p.clienteTel, p.id) : ''}
@@ -398,12 +409,11 @@ function pedidoHTML(p, comAcoes = true) {
     ${itensHTML(p.itens || [])}
     <div class="pc-bloco">${esc(pagamentoTexto(p))}</div>
     <div class="pc-total"><span>Total${p.taxaEntrega ? ` <small style="font-weight:600">(entrega ${fmtBRL(p.taxaEntrega)})</small>` : ''}</span><span>${fmtBRL(p.total)}</span></div>
-    ${comAcoes ? `<div class="pc-acoes">
-      ${podePronto ? `<button type="button" class="btn btn-pronto btn-peq" data-pronto="${esc(p.id)}" title="Abre o WhatsApp do cliente com o aviso e muda o status">✅ Pedido pronto</button>` : ''}
-      ${proximo && proximo !== statusPronto ? `<button type="button" class="btn btn-primario btn-peq" data-avancar="${esc(p.id)}" data-para="${proximo}">${U.STATUS[proximo].nome} →</button>` : ''}
-      <select data-status="${esc(p.id)}" aria-label="Mudar status">${opcoes}</select>
-      <a class="btn btn-whats btn-peq" href="https://wa.me/${esc(p.clienteTel)}" target="_blank" rel="noopener">WhatsApp</a>
-    </div>` : ''}
+    ${comAcoes ? `<div class="pc-acoes">${principal}</div>
+    <details class="pc-mais"><summary>⋯ Mais opções</summary>
+      <label class="campo"><span>Mudar status / cancelar</span><select data-status="${esc(p.id)}" aria-label="Mudar status">${opcoes}</select></label>
+      <a class="link" href="https://wa.me/${esc(p.clienteTel)}" target="_blank" rel="noopener">Conversar no WhatsApp (sem mensagem)</a>
+    </details>` : ''}
   </article>`;
 }
 
@@ -437,7 +447,7 @@ function renderPedidos(carregando = false) {
   atualizarEsperas();
 }
 
-async function mudarStatus(id, novo) {
+async function mudarStatus(id, novo, extra = {}) {
   const p = S.pedidos.find((x) => x.id === id);
   if (!p || p.status === novo) return;
   if (novo === 'cancelado' && !confirm(`Cancelar o pedido ${U.codigoPedido(p.id)} de ${p.clienteNome}?`)) {
@@ -446,7 +456,7 @@ async function mudarStatus(id, novo) {
   }
   const batch = writeBatch(db);
   // registra a hora em que ficou pronto e em que foi concluído (para saber quanto tempo levou)
-  const upd = { status: novo, atualizadoEm: serverTimestamp() };
+  const upd = { status: novo, atualizadoEm: serverTimestamp(), ...extra };
   if (['saiu', 'pronto'].includes(novo) && !p.prontoEm) upd.prontoEm = serverTimestamp();
   if (novo === 'concluido' && !p.concluidoEm) upd.concluidoEm = serverTimestamp();
   batch.update(doc(db, 'pedidos', id), upd);
@@ -467,21 +477,18 @@ async function mudarStatus(id, novo) {
 }
 $('#lista-pedidos-admin').addEventListener('click', (e) => {
   const pr = e.target.closest('[data-pronto]');
-  if (pr) return avisarPronto(pr.dataset.pronto);
+  if (pr) {
+    const p = S.pedidos.find((x) => x.id === pr.dataset.pronto);
+    if (p) mudarStatus(p.id, p.tipo === 'retirada' ? 'pronto' : 'saiu'); // para o cronômetro (grava prontoEm)
+    return;
+  }
+  // o link já abre o WhatsApp com a mensagem; aqui só marca como avisado/concluído
+  const inf = e.target.closest('[data-informar]');
+  if (inf) { mudarStatus(inf.dataset.informar, 'concluido', { informadoEm: serverTimestamp() }); return; }
   const b = e.target.closest('[data-avancar]');
   if (b) mudarStatus(b.dataset.avancar, b.dataset.para);
 });
 
-/** Abre o WhatsApp do cliente com a mensagem de "pedido pronto" e muda o status */
-function avisarPronto(id) {
-  const p = S.pedidos.find((x) => x.id === id);
-  if (!p) return;
-  const nome = apelidoDe(p.clienteTel) || String(p.clienteNome || '').split(' ')[0];
-  const msg = U.mensagemPronto(S.loja, p, { nome, codigo: U.codigoPedido(p.id) });
-  // abre primeiro (precisa ser no mesmo toque, senão o navegador bloqueia)
-  window.open(`https://wa.me/${p.clienteTel}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
-  mudarStatus(p.id, p.tipo === 'retirada' ? 'pronto' : 'saiu');
-}
 $('#lista-pedidos-admin').addEventListener('change', (e) => {
   if (e.target.dataset.status) mudarStatus(e.target.dataset.status, e.target.value);
 });
