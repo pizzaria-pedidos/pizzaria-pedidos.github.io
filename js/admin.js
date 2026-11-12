@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp,
-} from './firebase-config.js?v=7';
+} from './firebase-config.js?v=8';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=7';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=7';
+import * as U from './utils.js?v=8';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=8';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -970,6 +970,42 @@ $('#tabela-clientes tbody').addEventListener('click', (e) => {
   if (tr) abrirCliente(tr.dataset.cli);
 });
 
+// ---------- Apagar cliente (ex.: cadastro de teste) ----------
+async function confirmarApagarCliente(r) {
+  let peds = [];
+  try {
+    const snap = await getDocs(query(collection(db, 'pedidos'), where('clienteTel', '==', r.telefone)));
+    peds = snap.docs.map((d) => d.id);
+  } catch (err) { tratarErro(err); }
+  abrirModal('Apagar cliente', `
+    <p style="margin-bottom:12px">Apagar <b>${esc(r.nome)}</b>${r.apelido ? ` “${esc(r.apelido)}”` : ''} · ${U.fmtTel(r.telefone)}?</p>
+    <p class="cu-dica" style="margin-bottom:12px">O cadastro some da lista de clientes. Se essa pessoa abrir o link de novo, vai aparecer como cliente novo.</p>
+    ${peds.length ? `<label class="check" style="align-items:flex-start;margin-bottom:8px"><input type="checkbox" id="cli-apagar-pedidos" style="margin-top:2px">
+      <span>Apagar também os <b>${peds.length} pedido(s)</b> deste cliente<br><small style="color:var(--texto-2);font-weight:600">Marque para cadastros de <b>teste</b> (somem do faturamento e do Balanço). Para cliente de verdade, deixe desmarcado para não perder o histórico de vendas.</small></span></label>` : ''}
+    <p class="erro" id="cli-apagar-erro"></p>
+    <p style="font-weight:800;color:var(--erro)">Isso não pode ser desfeito.</p>`,
+    `<button type="button" class="btn btn-sec" data-fechar>Cancelar</button>
+     <button type="button" class="btn btn-perigo" id="cli-apagar-ok">🗑️ Apagar definitivamente</button>`);
+  $('#cli-apagar-ok').addEventListener('click', async (e) => {
+    const comPedidos = !!$('#cli-apagar-pedidos')?.checked;
+    e.target.disabled = true;
+    e.target.textContent = 'Apagando…';
+    const b = writeBatch(db);
+    b.delete(doc(db, 'clientes', r.id));
+    if (comPedidos) peds.forEach((id) => { b.delete(doc(db, 'pedidos', id)); b.delete(doc(db, 'custosPedidos', id)); });
+    try {
+      await b.commit();
+      fecharModal();
+      U.toast(`${r.nome} apagado${comPedidos && peds.length ? ` (com ${peds.length} pedido(s))` : ''}`);
+    } catch (err) {
+      tratarErro(err);
+      $('#cli-apagar-erro').textContent = 'Não foi possível apagar. Confira a internet e tente de novo.';
+      e.target.disabled = false;
+      e.target.textContent = '🗑️ Apagar definitivamente';
+    }
+  });
+}
+
 async function abrirCliente(id) {
   const r = linhasClientes().find((x) => x.id === id);
   if (!r) return;
@@ -986,7 +1022,9 @@ async function abrirCliente(id) {
     <div class="pc-bloco" style="margin-bottom:16px">📍 ${e ? esc(`${e.rua}, ${e.numero} — ${e.bairro}${e.complemento ? ` · ${e.complemento}` : ''}${e.referencia ? ` · Ref.: ${e.referencia}` : ''}`) : 'Nenhum endereço salvo'}</div>
     <h3 style="margin-bottom:10px">Histórico de pedidos</h3>
     <div id="cli-historico" class="lista-pedidos" style="grid-template-columns:1fr"><span class="sk sk-card"></span></div>`,
-    `<a class="btn btn-whats btn-bloco" href="https://wa.me/${esc(r.telefone)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>`);
+    `<button type="button" class="btn btn-perigo" id="cli-apagar">🗑️ Apagar cliente</button>
+     <a class="btn btn-whats" href="https://wa.me/${esc(r.telefone)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>`);
+  $('#cli-apagar').addEventListener('click', () => confirmarApagarCliente(r));
   try {
     const snap = await getDocs(query(collection(db, 'pedidos'), where('clienteTel', '==', r.telefone)));
     const peds = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
