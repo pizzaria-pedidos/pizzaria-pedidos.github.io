@@ -199,6 +199,15 @@ O "login" do cliente é só o número de WhatsApp, sem senha e sem código por S
 
 Para a v1 isso é aceitável. Numa próxima versão dá para adicionar verificação do número por código (Firebase Phone Auth ou um código enviado no WhatsApp).
 
+**Decisão de 12/11/2026: a identidade do cliente é o número do WhatsApp que envia a mensagem.** O pedido sempre chega pelo WhatsApp do cliente, e o número de quem envia não dá para falsificar. Por isso:
+- Ao receber um pedido, **confira se a mensagem veio do mesmo número que aparece no pedido**. Se não veio, é alguém se passando por outra pessoa.
+- **Fidelidade (futura):** contar pontos **só pelos pedidos que o dono concluiu no painel**, depois de conferir o número. Prêmios são liberados **só pelo dono**, nunca pelo cliente no site. Não usar os contadores `totalPedidos`/`totalGasto` do cadastro como base de prêmio, porque o próprio site do cliente atualiza esses contadores.
+- Opções avaliadas e **adiadas**:
+  - Login com Google: atrapalha quem tem pouca familiaridade e usuários de iPhone.
+  - Senha: o cliente esquece e o dono vira suporte.
+  - Código por SMS: é a melhor se um dia precisar, mas exige o plano Blaze e tem custo por SMS.
+  - Esconder o endereço e o histórico em celular novo: pode ser feito depois, por privacidade (LGPD).
+
 ## Fora da v1 (o código já está organizado para receber)
 
 Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão de comanda, verificação por SMS e upload de fotos para o Storage (hoje a foto é uma URL).
