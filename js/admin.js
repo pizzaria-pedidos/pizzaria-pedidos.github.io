@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp,
-} from './firebase-config.js?v=6';
+} from './firebase-config.js?v=7';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=6';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=6';
+import * as U from './utils.js?v=7';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=7';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -105,6 +105,7 @@ function iniciarPainel(user) {
     $('#menu-nome').textContent = S.loja.nome;
     renderBotaoLoja();
     renderBotaoEntrega();
+    if (S.view === 'cardapio') renderCrud();
     if (!S.cfgPreenchida) preencherConfig();
     if (S.view === 'clientes') renderClientes();
   }, tratarErro));
@@ -462,15 +463,16 @@ const SCHEMAS = {
     singular: 'sabor', toggle: 'disponivel',
     campos: [
       { k: 'nome', t: 'text', label: 'Nome', req: true, ph: 'Ex.: Calabresa' },
-      { k: 'ingredientes', t: 'textarea', label: 'Ingredientes' },
+      { k: 'ingredientes', t: 'textarea', label: 'Descrição / ingredientes (o cliente vê no cardápio)', ph: 'Ex.: Molho, mussarela, calabresa, cebola e orégano' },
+      { k: 'grupo', t: 'grupoSabor', label: 'Grupo de preço' },
+      { k: 'precos', t: 'precos', label: 'Preço próprio (R$)' },
       { k: 'fotoUrl', t: 'url', label: 'Foto (URL)', ph: 'https://…' },
-      { k: 'precos', t: 'precos', label: 'Preço por tamanho (R$)' },
       { k: 'disponivel', t: 'bool', label: 'Disponível', def: true },
     ],
     sub: (s) => [
-      Object.entries(s.precos || {}).filter(([t]) => tamanhosPizza().includes(t)).map(([t, v]) => `${t} ${fmtBRL(v)}`).join(' · ') || 'sem preço',
-      s.ingredientes || '',
-    ].filter(Boolean).join(' — '),
+      [nomeGrupoSabor(s.grupo), Object.entries(s.precos || {}).filter(([t]) => tamanhosPizza().includes(t)).map(([t, v]) => `${t} ${fmtBRL(v)}`).join(' · ') || 'sem preço'].join(' · '),
+      s.ingredientes || '⚠️ sem descrição',
+    ].join(' — '),
   },
   bordas: {
     singular: 'borda', toggle: 'disponivel',
@@ -524,6 +526,72 @@ function grupoDe(item) {
   return todos.sort(U.porOrdem);
 }
 
+// ---------- Grupos de preço dos sabores ----------
+const gruposSabor = () => S.loja.gruposSabor || [];
+const nomeGrupoSabor = (id) => gruposSabor().find((g) => g.id === id)?.nome || 'Sem grupo';
+function precosValidos(precos) {
+  return Object.fromEntries(Object.entries(precos || {}).filter(([t, v]) => tamanhosPizza().includes(t) && v > 0));
+}
+const textoPrecoGrupo = (g) => Object.entries(precosValidos(g.precos)).map(([t, v]) => `${tamanhosPizza().length > 1 ? `${t} ` : ''}${fmtBRL(v)}`).join(' · ');
+
+function gruposHTML() {
+  const tams = tamanhosPizza();
+  return `<div class="cartao grupos-preco">
+    <h3>💰 Preço por grupo</h3>
+    <p class="cu-dica">Mude o preço uma vez e ele vai para <b>todos</b> os sabores do grupo. Em cada sabor da lista abaixo, escolha o grupo dele.</p>
+    ${gruposSabor().map((g) => {
+      const n = S.sabores.filter((s) => s.grupo === g.id).length;
+      return `<div class="grupo-linha" data-g="${esc(g.id)}">
+        <label class="campo grupo-nome"><span>Grupo</span><input class="input" data-gnome value="${esc(g.nome)}" maxlength="30"></label>
+        ${tams.map((t) => `<label class="campo grupo-preco"><span>${tams.length > 1 ? `Preço ${esc(t)}` : `Preço (pizza ${esc(t)})`}</span>
+          <input class="input" inputmode="decimal" data-gpreco data-tam="${esc(t)}" value="${esc(U.moneyInput(g.precos?.[t]))}" placeholder="0,00"></label>`).join('')}
+        <div class="grupo-acoes">
+          <button type="button" class="btn btn-primario btn-peq" data-aplicar-grupo="${esc(g.id)}">Salvar e aplicar (${n} sabor${n === 1 ? '' : 'es'})</button>
+          <button type="button" class="btn-icone" data-excluir-grupo="${esc(g.id)}" aria-label="Excluir grupo ${esc(g.nome)}" title="Excluir grupo">✕</button>
+        </div>
+      </div>`;
+    }).join('')}
+    <button type="button" class="btn btn-sec btn-peq" data-novo-grupo>+ Novo grupo</button>
+  </div>`;
+}
+
+async function salvarGrupos(grupos, batch = writeBatch(db)) {
+  batch.set(doc(db, 'config', 'loja'), { gruposSabor: grupos }, { merge: true });
+  await batch.commit();
+}
+async function aplicarGrupo(gid) {
+  const linha = document.querySelector(`.grupo-linha[data-g="${CSS.escape(gid)}"]`);
+  const g = gruposSabor().find((x) => x.id === gid);
+  if (!linha || !g) return;
+  const nome = linha.querySelector('[data-gnome]').value.trim() || g.nome;
+  const precos = { ...(g.precos || {}) };
+  linha.querySelectorAll('[data-gpreco]').forEach((i) => {
+    const n = U.parseMoney(i.value);
+    if (n > 0) precos[i.dataset.tam] = n; else delete precos[i.dataset.tam];
+  });
+  const grupos = gruposSabor().map((x) => (x.id === gid ? { ...x, nome, precos } : x));
+  const alvo = S.sabores.filter((s) => s.grupo === gid);
+  const pv = precosValidos(precos);
+  const b = writeBatch(db);
+  alvo.forEach((s) => b.update(doc(db, 'sabores', s.id), { precos: { ...(s.precos || {}), ...pv } }));
+  try {
+    document.activeElement?.blur();
+    await salvarGrupos(grupos, b);
+    U.toast(`${nome}: preço aplicado a ${alvo.length} sabor(es) ✓`);
+  } catch (e) { tratarErro(e); U.toast('Erro ao salvar.', 'erro-t'); }
+}
+async function atribuirGrupo(sid, gid) {
+  const s = S.sabores.find((x) => x.id === sid);
+  if (!s) return;
+  const g = gruposSabor().find((x) => x.id === gid);
+  const dados = { grupo: gid };
+  if (g) dados.precos = { ...(s.precos || {}), ...precosValidos(g.precos) };
+  try {
+    await updateDoc(doc(db, 'sabores', sid), dados);
+    U.toast(g ? `${s.nome} → ${g.nome}${textoPrecoGrupo(g) ? ` (${textoPrecoGrupo(g)})` : ''}` : `${s.nome}: preço próprio`);
+  } catch (e) { tratarErro(e); U.toast('Erro ao salvar.', 'erro-t'); }
+}
+
 function renderCrud() {
   if (S.view !== 'cardapio') return;
   const sch = SCHEMAS[S.col];
@@ -536,6 +604,7 @@ function renderCrud() {
     extra = `<select class="input" id="crud-cat" aria-label="Filtrar por categoria"><option value="">Todas as categorias</option>${
       S.categorias.map((c) => `<option value="${esc(c.id)}" ${S.filtroCat === c.id ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</select>`;
   }
+  if (S.col === 'sabores' && !busca) extra = gruposHTML();
   if (S.col === 'sabores' && busca && itens.length) {
     extra = `<span>${itens.length} sabor(es) com “${esc(busca)}”:</span>
       <button type="button" class="btn btn-perigo btn-peq" data-massa="false">Desativar todos</button>
@@ -544,8 +613,11 @@ function renderCrud() {
   if (S.col === 'sabores' && !tamanhosPizza().length) {
     extra += '<p class="aviso">Cadastre primeiro um <b>produto do tipo pizza</b> com tamanho (ex.: Grande) para definir os preços dos sabores.</p>';
   }
-  $('#crud-extra').innerHTML = extra;
-  $('#crud-extra').hidden = !extra;
+  const digitandoExtra = $('#crud-extra').contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
+  if (!digitandoExtra) {
+    $('#crud-extra').innerHTML = extra;
+    $('#crud-extra').hidden = !extra;
+  }
 
   if (!itens.length) {
     $('#crud-lista').innerHTML = `<p class="vazio"><span class="emoji">📋</span>${busca ? 'Nada encontrado.' : `Nenhum(a) ${sch.singular} cadastrado(a). Toque em “+ Novo”.`}</p>`;
@@ -567,12 +639,47 @@ function renderCrud() {
         <button type="button" data-mover="1" data-id="${esc(it.id)}" ${idx >= grupo.length - 1 || busca ? 'disabled' : ''} aria-label="Descer">▼</button>
       </div>
       <div class="crud-info"><strong>${esc(it.nome)}</strong><small>${esc(sch.sub(it))}</small></div>
+      ${S.col === 'sabores' ? `<select class="input sel-grupo" data-grupo-sabor="${esc(it.id)}" aria-label="Grupo de preço de ${esc(it.nome)}">${
+        gruposSabor().map((g) => `<option value="${esc(g.id)}" ${it.grupo === g.id ? 'selected' : ''}>${esc(g.nome)}</option>`).join('')
+      }<option value="" ${!gruposSabor().some((g) => g.id === it.grupo) ? 'selected' : ''}>Preço próprio</option></select>` : ''}
       <label class="switch" title="${on ? 'Desativar' : 'Ativar'}"><input type="checkbox" data-toggle="${esc(it.id)}" ${on ? 'checked' : ''} aria-label="${esc(it.nome)} ${sch.toggle === 'ativo' ? 'ativa' : 'disponível'}"><span></span></label>
       <button type="button" class="btn btn-sec btn-peq" data-editar="${esc(it.id)}">Editar</button>
     </div>`;
   }).join('');
 }
 
+$('#crud-lista').addEventListener('change', (e) => {
+  const sid = e.target.dataset.grupoSabor;
+  if (sid) atribuirGrupo(sid, e.target.value);
+});
+$('#crud-extra').addEventListener('click', async (e) => {
+  const ap = e.target.closest('[data-aplicar-grupo]');
+  if (ap) return aplicarGrupo(ap.dataset.aplicarGrupo);
+  if (e.target.closest('[data-novo-grupo]')) {
+    const nome = (prompt('Nome do novo grupo (ex.: Doces):') || '').trim();
+    if (!nome) return;
+    const id = `${U.norm(nome).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'grupo'}-${Date.now().toString(36)}`;
+    try { await salvarGrupos([...gruposSabor(), { id, nome: nome.slice(0, 30), precos: {} }]); U.toast(`Grupo “${nome}” criado`); }
+    catch (err) { tratarErro(err); U.toast('Erro ao salvar.', 'erro-t'); }
+    return;
+  }
+  const ex = e.target.closest('[data-excluir-grupo]');
+  if (ex) {
+    const g = gruposSabor().find((x) => x.id === ex.dataset.excluirGrupo);
+    const n = S.sabores.filter((s) => s.grupo === g.id).length;
+    if (!confirm(`Excluir o grupo “${g.nome}”?${n ? `\n\nOs ${n} sabor(es) dele continuam com o preço atual, como “preço próprio”.` : ''}`)) return;
+    const b = writeBatch(db);
+    S.sabores.filter((s) => s.grupo === g.id).forEach((s) => b.update(doc(db, 'sabores', s.id), { grupo: '' }));
+    try { await salvarGrupos(gruposSabor().filter((x) => x.id !== g.id), b); U.toast('Grupo excluído'); }
+    catch (err) { tratarErro(err); U.toast('Erro ao salvar.', 'erro-t'); }
+  }
+});
+$('#crud-extra').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.closest('.grupo-linha')) {
+    e.preventDefault();
+    aplicarGrupo(e.target.closest('.grupo-linha').dataset.g);
+  }
+});
 $('#crud-extra').addEventListener('change', (e) => {
   if (e.target.id === 'crud-cat') { S.filtroCat = e.target.value; renderCrud(); }
 });
@@ -620,7 +727,7 @@ function campoHTML(c, v) {
   const ajuda = c.ajuda ? `<small>${esc(c.ajuda)}</small>` : '';
   switch (c.t) {
     case 'textarea':
-      return `<label class="campo ${cls}"><span>${c.label}</span><textarea name="${c.k}" maxlength="300">${esc(v || '')}</textarea>${ajuda}</label>`;
+      return `<label class="campo ${cls}"><span>${c.label}</span><textarea name="${c.k}" maxlength="300" placeholder="${esc(c.ph || '')}">${esc(v || '')}</textarea>${ajuda}</label>`;
     case 'money':
       return `<label class="campo ${cls}"><span>${c.label}</span><input name="${c.k}" inputmode="decimal" placeholder="0,00" value="${esc(U.moneyInput(v))}">${ajuda}</label>`;
     case 'int':
@@ -631,10 +738,15 @@ function campoHTML(c, v) {
       return `<label class="campo ${cls}"><span>${c.label}</span><select name="${c.k}">${Object.entries(c.opcoes).map(([k, n]) => `<option value="${k}" ${v === k ? 'selected' : ''}>${n}</option>`).join('')}</select>${ajuda}</label>`;
     case 'categoria':
       return `<label class="campo ${cls}"><span>${c.label}</span><select name="${c.k}"><option value="">Escolha…</option>${S.categorias.map((cat) => `<option value="${esc(cat.id)}" ${v === cat.id ? 'selected' : ''}>${esc(cat.nome)}</option>`).join('')}</select>${ajuda}</label>`;
+    case 'grupoSabor':
+      return `<label class="campo"><span>${c.label}</span><select name="${c.k}">${
+        gruposSabor().map((g) => `<option value="${esc(g.id)}" ${v === g.id ? 'selected' : ''}>${esc(g.nome)}${textoPrecoGrupo(g) ? ` — ${textoPrecoGrupo(g)}` : ' — (sem preço ainda)'}</option>`).join('')
+      }<option value="" ${!v ? 'selected' : ''}>Sem grupo — preço próprio</option></select>
+      <small>O preço vem do grupo (Cardápio → Sabores → “Preço por grupo”). Para um preço diferente só deste sabor, escolha “Sem grupo”.</small></label>`;
     case 'precos': {
       // só os tamanhos ligados; preços de tamanhos desligados ficam guardados (não aparecem)
       const tams = tamanhosPizza();
-      return `<div class="campo ${cls}"><span>${c.label}</span>${tams.length
+      return `<div class="campo campo-precos ${cls}"><span>${c.label}</span>${tams.length
         ? `<div class="precos-tamanho">${tams.map((t) => `<label class="campo" style="margin:0"><span style="font-weight:600">${esc(t)}</span><input data-tam="${esc(t)}" inputmode="decimal" placeholder="não vende" value="${esc(U.moneyInput(v?.[t]))}"></label>`).join('')}</div><small>Deixe vazio para não oferecer o sabor naquele tamanho.</small>`
         : '<small>Nenhum tamanho de pizza cadastrado ainda (crie um produto do tipo pizza).</small>'}</div>`;
     }
@@ -683,6 +795,12 @@ function abrirForm(col, item) {
   };
   form.elements.tipo?.addEventListener('change', atualizarTipo);
   atualizarTipo();
+  const atualizarGrupo = () => {
+    const proprio = !form.elements.grupo?.value;
+    $$('.campo-precos', form).forEach((el) => (el.hidden = form.elements.grupo && !proprio));
+  };
+  form.elements.grupo?.addEventListener('change', atualizarGrupo);
+  atualizarGrupo();
   form.addEventListener('submit', (e) => e.preventDefault());
 
   $('#crud-salvar').addEventListener('click', () => salvarForm(col, item, form));
@@ -711,6 +829,7 @@ async function salvarForm(col, item, form) {
           if (n > 0) dados.precos[i.dataset.tam] = n;
         });
         break;
+      case 'grupoSabor': dados.grupo = el.value; break;
       case 'sabores':
         dados.saboresPermitidos = $$('input[name="saboresPermitidos"]:checked', form).map((i) => i.value);
         break;
@@ -722,6 +841,13 @@ async function salvarForm(col, item, form) {
     if (!dados.categoriaId) { erro.textContent = 'Escolha a categoria.'; return; }
     if (pizza && !dados.tamanho) { erro.textContent = 'Informe o tamanho da pizza (ex.: Grande).'; return; }
     if (!pizza && !(dados.preco > 0)) { erro.textContent = 'Informe o preço.'; return; }
+  }
+  if (col === 'sabores' && dados.grupo) {
+    // preço vem do grupo
+    const g = gruposSabor().find((x) => x.id === dados.grupo);
+    const pg = precosValidos(g?.precos);
+    if (!Object.keys(pg).length && !confirm(`O grupo “${g?.nome}” ainda não tem preço. Defina em “Preço por grupo”, senão o sabor não aparece para o cliente. Salvar mesmo assim?`)) return;
+    dados.precos = { ...dados.precos, ...pg };
   }
   if (col === 'sabores' && !Object.keys(dados.precos).length && tamanhosPizza().length) {
     if (!confirm('Esse sabor está sem preço em todos os tamanhos e não vai aparecer para o cliente. Salvar mesmo assim?')) return;
@@ -983,7 +1109,7 @@ $('#btn-seed').addEventListener('click', async () => {
     ['chocolate', 'Chocolate', 'Chocolate ao leite com granulado', 44, 54],
   ];
   sabores.forEach(([id, nome, ingredientes, media, grande], i) =>
-    put('sabores', id, { nome, ingredientes, fotoUrl: '', precos: { 'Média': media, Grande: grande }, disponivel: true, ordem: i }));
+    put('sabores', id, { nome, ingredientes, fotoUrl: '', precos: { 'Média': media, Grande: grande }, grupo: ['calabresa', 'mussarela', 'alho-oleo'].includes(id) ? 'tradicional' : 'especial', disponivel: true, ordem: i }));
 
   put('bordas', 'sem-borda', { nome: 'Sem borda', preco: 0, disponivel: true, ordem: 0 });
   put('bordas', 'catupiry', { nome: 'Catupiry', preco: 8, disponivel: true, ordem: 1 });

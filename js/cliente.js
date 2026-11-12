@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=6';
-import * as U from './utils.js?v=6';
+} from './firebase-config.js?v=7';
+import * as U from './utils.js?v=7';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -389,6 +389,41 @@ function produtosVisiveis() {
   return S.produtos.filter((p) => catAtiva(p.categoriaId) && (!ocultar || disponivel(p)));
 }
 
+/** Pizza usada para mostrar os sabores no cardápio (a primeira pizza disponível) */
+function pizzaDosSabores() {
+  return produtosVisiveis().find((p) => p.tipo === 'pizza' && disponivel(p)) || null;
+}
+/** Preço comum de um grupo de sabores (se todos custam igual), senão null */
+function precoDoGrupo(lista, p) {
+  const ps = [...new Set(lista.filter((s) => s.disponivel !== false).map((s) => precoSabor(s, p)))];
+  return ps.length === 1 ? ps[0] : null;
+}
+/** "🍕 Nossos sabores": Tradicionais / Especiais, com a descrição de cada sabor */
+function saboresCardapioHTML(p, b) {
+  let lista = saboresDoProduto(p, !S.loja.ocultarIndisponiveis);
+  if (b) lista = lista.filter((s) => U.norm(`${s.nome} ${s.ingredientes || ''}`).includes(b));
+  if (!lista.length) return '';
+  const max = p.maxSabores || 1;
+  const grupos = U.agruparSabores(lista, S.loja.gruposSabor);
+  return `<div class="sabores-cardapio">
+    <h3 class="sabores-titulo">🍕 Nossos sabores</h3>
+    <p class="sabores-dica">${esc(p.nome)} · toque no sabor para montar${max > 1 ? ` (até ${max} sabores)` : ''}</p>
+    ${grupos.map(({ grupo, sabores }) => {
+      const pg = precoDoGrupo(sabores, p);
+      return `<div class="sabores-grupo">
+        <div class="sabores-grupo-topo"><b>${esc(grupo.nome)}</b>${pg ? `<span class="preco">${fmtBRL(pg)}</span>` : ''}</div>
+        ${sabores.map((s) => {
+          const esg = s.disponivel === false;
+          return `<button type="button" class="sabor-card${esg ? ' indisp' : ''}" data-sabor-cardapio="${esc(s.id)}" data-pizza="${esc(p.id)}" ${esg ? 'disabled' : ''}>
+            <span class="sabor-txt"><strong>${esc(s.nome)}</strong>${s.ingredientes ? `<small>${esc(s.ingredientes)}</small>` : ''}</span>
+            <span class="sabor-preco">${esg ? 'Esgotado' : pg ? '›' : fmtBRL(precoSabor(s, p))}</span>
+          </button>`;
+        }).join('')}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
 function renderCardapio() {
   if (!cardapioCarregado()) return; // mantém o skeleton
   const b = U.norm(S.busca.trim());
@@ -421,9 +456,12 @@ function renderCardapio() {
       if (b) prods = prods.filter((p) => combinaBusca(p, b));
       if (!prods.length) return '';
       algum = true;
+      const pizzaSabores = pizzaDosSabores();
+      const sabores = pizzaSabores && prods.some((p) => p.id === pizzaSabores.id) ? saboresCardapioHTML(pizzaSabores, b) : '';
       return `<section class="secao" id="cat-${esc(c.id)}" data-cat="${esc(c.id)}">
         <h2>${esc(c.nome)}</h2>
         <div class="lista-produtos">${prods.map(cardProduto).join('')}</div>
+        ${sabores}
       </section>`;
     })
     .join('');
@@ -470,6 +508,8 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 
 document.addEventListener('click', (e) => {
+  const sabor = e.target.closest('[data-sabor-cardapio]');
+  if (sabor && !sabor.disabled) { abrirProduto(sabor.dataset.pizza, sabor.dataset.saborCardapio); return; }
   const card = e.target.closest('[data-produto]');
   if (card && !card.disabled) abrirProduto(card.dataset.produto);
 });
@@ -477,7 +517,7 @@ document.addEventListener('click', (e) => {
 // =====================================================================
 //  Modal do produto (montagem da pizza / item simples)
 // =====================================================================
-function abrirProduto(id) {
+function abrirProduto(id, saborInicial = '') {
   const p = S.produtos.find((x) => x.id === id);
   if (!p || !disponivel(p)) return;
   const pizza = p.tipo === 'pizza';
@@ -490,6 +530,8 @@ function abrirProduto(id) {
     bordaId: semBordaReal ? semBordaReal.id : '',
     adics,
   };
+  // veio do "Nossos sabores": já começa com o sabor escolhido
+  if (saborInicial && saboresDoProduto(p).some((s) => s.id === saborInicial)) S.m.sabores = [saborInicial];
   const max = p.maxSabores || 1;
   const regra = max === 1 ? 'Escolha 1 sabor' : `Escolha de 1 a ${max} sabores`;
   const meta = pizza ? [p.fatias ? `${p.fatias} fatias` : '', `até ${max} sabor${max > 1 ? 'es' : ''}`].filter(Boolean).join(' · ') : '';
@@ -561,8 +603,7 @@ function renderMontagem() {
     const cheio = max > 1 && n >= max;
     const lista = saboresDoProduto(p, !S.loja.ocultarIndisponiveis)
       .filter((s) => !b || S.m.sabores.includes(s.id) || U.norm(`${s.nome} ${s.ingredientes || ''}`).includes(b));
-    $('#mp-sabores').innerHTML = lista.length
-      ? lista.map((s) => {
+    const linhaSabor = (s) => {
           const sel = S.m.sabores.includes(s.id);
           const esg = s.disponivel === false;
           return `<button type="button" class="opcao${sel ? ' sel' : ''}" data-sabor="${esc(s.id)}" aria-pressed="${sel}" ${esg || (cheio && !sel) ? 'disabled' : ''}>
@@ -571,6 +612,12 @@ function renderMontagem() {
             <span class="opcao-preco">${esg ? 'Esgotado' : fmtBRL(precoSabor(s, p))}</span>
             <span class="marcador" aria-hidden="true"></span>
           </button>`;
+        };
+    const grupos = U.agruparSabores(lista, S.loja.gruposSabor);
+    $('#mp-sabores').innerHTML = lista.length
+      ? grupos.map(({ grupo, sabores }) => {
+          const pg = precoDoGrupo(sabores, p);
+          return `${grupos.length > 1 || grupo.id ? `<div class="opcao-grupo">${esc(grupo.nome)}${pg ? ` · ${fmtBRL(pg)}` : ''}</div>` : ''}${sabores.map(linhaSabor).join('')}`;
         }).join('')
       : '<p class="vazio" style="padding:16px">Nenhum sabor encontrado.</p>';
 

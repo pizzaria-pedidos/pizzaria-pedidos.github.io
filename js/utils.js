@@ -33,6 +33,21 @@ export function precoPizza(precos, regra = 'maior') {
   return round2((REGRAS_PRECO[regra] || REGRAS_PRECO.maior).calc(precos));
 }
 
+// ---------- Grupos de preço dos sabores (Tradicionais, Especiais…) ----------
+// Ficam em config/loja.gruposSabor: [{ id, nome, precos: { [tamanho]: valor } }].
+// O preço do grupo é copiado para cada sabor do grupo ao "Salvar e aplicar".
+export const GRUPOS_PADRAO = [
+  { id: 'tradicional', nome: 'Tradicionais', precos: {} },
+  { id: 'especial', nome: 'Especiais', precos: {} },
+];
+/** Separa os sabores pelos grupos (na ordem dos grupos); sem grupo vão para "Outros sabores" */
+export function agruparSabores(sabores, grupos = []) {
+  const out = grupos.map((g) => ({ grupo: g, sabores: sabores.filter((s) => s.grupo === g.id) }));
+  const outros = sabores.filter((s) => !grupos.some((g) => g.id === s.grupo));
+  if (outros.length) out.push({ grupo: { id: '', nome: out.some((x) => x.sabores.length) ? 'Outros sabores' : 'Sabores', precos: {} }, sabores: outros });
+  return out.filter((x) => x.sabores.length);
+}
+
 // ---------- Configuração padrão da loja ----------
 function horariosPadrao() {
   return Object.fromEntries(DIAS.map((d) => [d, { aberto: true, abre: '18:00', fecha: '23:00' }]));
@@ -58,6 +73,7 @@ export const DEFAULT_LOJA = {
 export function mesclarLoja(dados) {
   const l = { ...DEFAULT_LOJA, ...(dados || {}) };
   l.horarios = { ...horariosPadrao(), ...((dados && dados.horarios) || {}) };
+  l.gruposSabor = Array.isArray(dados?.gruposSabor) ? dados.gruposSabor : JSON.parse(JSON.stringify(GRUPOS_PADRAO));
   return l;
 }
 
