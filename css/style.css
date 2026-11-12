@@ -699,3 +699,16 @@ table.res tr:last-child td { border-bottom: 0; }
   .crud-info { flex-basis: calc(100% - 50px); }
   .sel-grupo { flex: 1; max-width: none; }
 }
+
+/* ---------- Foto (galeria) no painel ---------- */
+.foto-box { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.foto-prev { width: 96px; height: 96px; border-radius: 12px; flex-shrink: 0; border: 1px solid var(--borda); }
+.foto-prev[data-emoji]::before { font-size: 1.8rem; opacity: 0.6; }
+.foto-acoes { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.foto-acoes label.btn { cursor: pointer; }
+.foto-status { color: var(--texto-2); font-weight: 700; }
+.foto-link { margin-top: 8px; }
+.foto-link summary { cursor: pointer; color: var(--texto-2); font-size: 0.85rem; font-weight: 700; min-height: 32px; }
+/* foto pequena do sabor no "Nossos sabores" */
+.sabor-foto { width: 52px; height: 52px; border-radius: 10px; flex-shrink: 0; }
+.sabor-foto[data-emoji]::before { font-size: 1.4rem; }

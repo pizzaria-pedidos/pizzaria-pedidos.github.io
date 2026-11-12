@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=8';
-import * as U from './utils.js?v=8';
+} from './firebase-config.js?v=9';
+import * as U from './utils.js?v=9';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -415,6 +415,7 @@ function saboresCardapioHTML(p, b) {
         ${sabores.map((s) => {
           const esg = s.disponivel === false;
           return `<button type="button" class="sabor-card${esg ? ' indisp' : ''}" data-sabor-cardapio="${esc(s.id)}" data-pizza="${esc(p.id)}" ${esg ? 'disabled' : ''}>
+            ${s.fotoUrl ? U.fotoHTML(s.fotoUrl, '🍕', 'sabor-foto') : ''}
             <span class="sabor-txt"><strong>${esc(s.nome)}</strong>${s.ingredientes ? `<small>${esc(s.ingredientes)}</small>` : ''}</span>
             <span class="sabor-preco">${esg ? 'Esgotado' : pg ? '›' : fmtBRL(precoSabor(s, p))}</span>
           </button>`;

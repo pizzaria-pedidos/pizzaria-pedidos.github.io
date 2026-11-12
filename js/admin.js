@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp,
-} from './firebase-config.js?v=8';
+} from './firebase-config.js?v=9';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=8';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=8';
+import * as U from './utils.js?v=9';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=9';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -442,7 +442,7 @@ const SCHEMAS = {
       { k: 'descricao', t: 'textarea', label: 'Descrição curta' },
       { k: 'categoriaId', t: 'categoria', label: 'Categoria', req: true },
       { k: 'tipo', t: 'select', label: 'Tipo', def: 'simples', opcoes: { simples: 'Item simples (bebida, porção…)', pizza: 'Pizza (cliente escolhe sabores)' } },
-      { k: 'fotoUrl', t: 'url', label: 'Foto (URL)', ph: 'https://…' },
+      { k: 'fotoUrl', t: 'foto', label: 'Foto' },
       { k: 'preco', t: 'money', label: 'Preço (R$)', ajuda: 'Em pizzas, o preço vem dos sabores. Este valor só é usado se o sabor não tiver preço para este tamanho.' },
       { k: 'tamanho', t: 'text', label: 'Tamanho', pizza: true, ph: 'Ex.: Grande', ajuda: 'Nome usado na tabela de preços dos sabores (ex.: Média, Grande).' },
       { k: 'fatias', t: 'int', label: 'Nº de fatias', pizza: true, def: 8 },
@@ -466,7 +466,7 @@ const SCHEMAS = {
       { k: 'ingredientes', t: 'textarea', label: 'Descrição / ingredientes (o cliente vê no cardápio)', ph: 'Ex.: Molho, mussarela, calabresa, cebola e orégano' },
       { k: 'grupo', t: 'grupoSabor', label: 'Grupo de preço' },
       { k: 'precos', t: 'precos', label: 'Preço próprio (R$)' },
-      { k: 'fotoUrl', t: 'url', label: 'Foto (URL)', ph: 'https://…' },
+      { k: 'fotoUrl', t: 'foto', label: 'Foto do sabor' },
       { k: 'disponivel', t: 'bool', label: 'Disponível', def: true },
     ],
     sub: (s) => [
@@ -726,6 +726,8 @@ function campoHTML(c, v) {
   const cls = c.pizza ? 'so-pizza' : '';
   const ajuda = c.ajuda ? `<small>${esc(c.ajuda)}</small>` : '';
   switch (c.t) {
+    case 'foto':
+      return fotoCampoHTML(c.k, v || '', c.label, cls);
     case 'textarea':
       return `<label class="campo ${cls}"><span>${c.label}</span><textarea name="${c.k}" maxlength="300" placeholder="${esc(c.ph || '')}">${esc(v || '')}</textarea>${ajuda}</label>`;
     case 'money':
@@ -758,6 +760,60 @@ function campoHTML(c, v) {
       return `<label class="campo ${cls}"><span>${c.label}${c.req ? ' *' : ''}</span><input name="${c.k}" type="${c.t === 'url' ? 'url' : 'text'}" maxlength="${c.t === 'url' ? 500 : 80}" placeholder="${esc(c.ph || '')}" value="${esc(v || '')}">${ajuda}</label>`;
   }
 }
+
+// ---------- Campo de foto: escolher da galeria (ou colar link) ----------
+function fotoCampoHTML(nome, valor, rotulo, cls = '') {
+  const link = valor && !valor.startsWith('data:') ? valor : '';
+  return `<div class="campo campo-foto ${cls}" data-foto-campo="${esc(nome)}">
+    <span>${esc(rotulo)}</span>
+    <div class="foto-box">
+      <div class="foto-prev" data-emoji="📷">${valor ? `<img src="${esc(valor)}" alt="" onerror="this.remove()">` : ''}</div>
+      <div class="foto-acoes">
+        <label class="btn btn-sec btn-peq">📷 ${valor ? 'Trocar foto' : 'Escolher da galeria'}<input type="file" accept="image/*" data-foto-arquivo hidden></label>
+        <button type="button" class="btn btn-perigo btn-peq" data-foto-remover ${valor ? '' : 'hidden'}>Remover foto</button>
+        <small class="foto-status"></small>
+      </div>
+    </div>
+    <input type="hidden" name="${esc(nome)}" value="${esc(valor)}">
+    <details class="foto-link"><summary>ou colar o link de uma imagem</summary>
+      <input class="input" data-foto-link placeholder="https://…" value="${esc(link)}"></details>
+  </div>`;
+}
+function fotoAtualizar(campo, valor) {
+  campo.querySelector('input[type="hidden"]').value = valor;
+  campo.querySelector('.foto-prev').innerHTML = valor ? `<img src="${esc(valor)}" alt="" onerror="this.remove()">` : '';
+  campo.querySelector('[data-foto-remover]').hidden = !valor;
+  campo.querySelector('label.btn').firstChild.textContent = `📷 ${valor ? 'Trocar foto' : 'Escolher da galeria'}`;
+}
+document.addEventListener('change', async (e) => {
+  const inp = e.target.closest('[data-foto-arquivo]');
+  if (!inp || !inp.files[0]) return;
+  const campo = inp.closest('[data-foto-campo]');
+  const st = campo.querySelector('.foto-status');
+  st.textContent = 'Preparando a foto…';
+  try {
+    const logo = campo.dataset.fotoCampo === 'logoUrl';
+    const dados = await U.comprimirImagem(inp.files[0], logo ? 400 : 640, logo ? 80 : 120);
+    fotoAtualizar(campo, dados);
+    campo.querySelector('[data-foto-link]').value = '';
+    st.textContent = `Foto pronta (${Math.round(dados.length / 1370)} KB). Toque em Salvar.`;
+  } catch (err) {
+    st.textContent = err.message;
+  }
+  inp.value = '';
+});
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-foto-remover]');
+  if (!b) return;
+  const campo = b.closest('[data-foto-campo]');
+  fotoAtualizar(campo, '');
+  campo.querySelector('[data-foto-link]').value = '';
+  campo.querySelector('.foto-status').textContent = 'Foto removida. Toque em Salvar.';
+});
+document.addEventListener('input', (e) => {
+  const l = e.target.closest('[data-foto-link]');
+  if (l) fotoAtualizar(l.closest('[data-foto-campo]'), l.value.trim());
+});
 
 function abrirModal(titulo, corpo, rodape) {
   $('#modal-titulo').textContent = titulo;
@@ -1046,7 +1102,7 @@ function preencherConfig() {
   const l = S.loja;
   S.cfgPreenchida = true;
   f.elements.nome.value = l.nome;
-  f.elements.logoUrl.value = l.logoUrl;
+  $('#cfg-logo').innerHTML = fotoCampoHTML('logoUrl', l.logoUrl || '', 'Logo da pizzaria');
   f.elements.whatsapp.value = l.whatsapp ? U.fmtTel(l.whatsapp) : '';
   f.elements.endereco.value = l.endereco;
   f.elements.taxaEntrega.value = U.moneyInput(l.taxaEntrega);

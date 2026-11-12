@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=8">
+  <link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body class="pg-admin">
   <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
@@ -126,7 +126,7 @@
           <div class="cartao">
             <h2>🏪 Loja</h2>
             <label class="campo"><span>Nome da pizzaria</span><input name="nome" maxlength="60" required></label>
-            <label class="campo"><span>Logo (URL da imagem)</span><input name="logoUrl" type="url" placeholder="https://…"></label>
+            <div id="cfg-logo"></div>
             <label class="campo"><span>WhatsApp que recebe os pedidos</span><input name="whatsapp" inputmode="numeric" placeholder="(71) 99999-9999"><small>Com DDD. É salvo como 55 + DDD + número.</small></label>
             <label class="campo"><span>Endereço da pizzaria (para retirada)</span><input name="endereco" maxlength="160"></label>
           </div>
@@ -214,6 +214,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="js/admin.js?v=8"></script>
+  <script type="module" src="js/admin.js?v=9"></script>
 </body>
 </html>

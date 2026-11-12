@@ -38,6 +38,10 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **Novidades de 12/11/2026 (4):**
   - Botão **Apagar cliente**, com opção de apagar também os pedidos dele.
   - Versão dos arquivos `?v=8`.
+- **Novidades de 12/11/2026 (5):**
+  - Foto da galeria em produtos, sabores e logo (o painel diminui a foto sozinho; sem Storage).
+  - Foto do sabor também aparece em "Nossos sabores".
+  - Versão dos arquivos `?v=9`.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
 ```
@@ -146,6 +150,7 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
 - **Descrição dos sabores:** é o campo **"Descrição / ingredientes"** do sabor (ex.: "Molho, mussarela, calabresa, cebola e orégano"). O cliente vê essa descrição na seção **"🍕 Nossos sabores"** do cardápio, separada por grupo e com o preço, e também na hora de montar a pizza. Tocar num sabor já abre a pizza com ele escolhido.
 - **Código do pedido:** cada pedido recebe um **código aleatório de 6 caracteres**, com letras e números (ex.: K7Q2M9). Ficaram de fora 0/O e 1/I/L, para ninguém confundir. A mensagem do WhatsApp começa com "🍕 *Código do seu pedido: K7Q2M9*", e o mesmo código aparece no card do painel, no Balanço e em "Meus pedidos" do cliente. Por baixo existe um contador interno (#0001, #0002…), mas ele não é mostrado a ninguém. O código é calculado a partir do ID do pedido, então não precisou mudar as regras.
 - **Histórico do cliente só no painel:** a mensagem do WhatsApp **não** mostra "cliente novo / 1º pedido". No painel, cada card de pedido mostra "🆕 Cliente novo · 1º pedido" ou "⭐ 8º pedido · cliente desde 03/2026 · já gastou R$ X".
+- **Fotos da galeria:** em Cardápio (Produtos e Sabores) e em Ajustes (logo), toque em **📷 Escolher da galeria**. No celular, abre a galeria ou a câmera. O painel **diminui a foto sozinho** (cerca de 640 px, de 40 a 120 KB) e ela fica guardada no próprio Firestore, dentro do produto ou sabor. Por isso **não precisa do Firebase Storage**, que hoje exige o plano pago Blaze. Depois de escolher, toque em **Salvar**. Ainda dá para colar um link de imagem em "ou colar o link de uma imagem".
 - **Apagar cliente:** em **Clientes**, toque no cliente e depois em **🗑️ Apagar cliente**. Para cadastros de **teste**, marque **"Apagar também os pedidos"**: eles saem do faturamento e do Balanço. Para cliente real, deixe desmarcado, para manter o histórico de vendas. Não dá para desfazer.
 - **Hoje sem entrega:** toque em **🛵 Entrega ligada · Desligar**, no topo de Pedidos ou em Ajustes. O cliente vê "🏃 Hoje só retirada no local", a opção Entrega fica bloqueada e o pedido vai como retirada, sem taxa. Toque de novo para religar. Vale até você religar.
 - **Apelido do cliente:** na entrada, além do WhatsApp e do nome, o cliente pode informar um **apelido (opcional)**. O site cumprimenta pelo apelido ("Olá, Joãozinho!"), a mensagem do WhatsApp mostra "João Silva (Joãozinho)" e o painel mostra o apelido nos pedidos e em Clientes. A busca também procura pelo apelido.
@@ -201,5 +206,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=8` → `?v=9` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=9` → `?v=10` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

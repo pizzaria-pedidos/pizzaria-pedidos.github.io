@@ -236,6 +236,39 @@ export function fotoHTML(url, emoji, classe) {
   }</div>`;
 }
 
+/**
+ * Lê uma foto escolhida da galeria/câmera e devolve uma versão pequena
+ * (lado maior = `max` px, JPEG) como texto "data:image/jpeg;base64,…".
+ * Ela é guardada direto no documento do produto/sabor no Firestore — assim não
+ * precisa do Firebase Storage (que hoje exige o plano pago Blaze).
+ * Tenta ficar abaixo de ~`limiteKB` (diminui a qualidade se precisar).
+ */
+export function comprimirImagem(arquivo, max = 640, limiteKB = 120) {
+  return new Promise((resolve, reject) => {
+    if (!arquivo || !/^image\//.test(arquivo.type || 'image/')) return reject(new Error('Escolha um arquivo de imagem.'));
+    const url = URL.createObjectURL(arquivo);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const escala = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * escala));
+      const h = Math.max(1, Math.round(img.naturalHeight * escala));
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      const g = cv.getContext('2d');
+      g.fillStyle = '#ffffff';            // fundo branco (PNG transparente não fica preto)
+      g.fillRect(0, 0, w, h);
+      g.drawImage(img, 0, 0, w, h);
+      let q = 0.8;
+      let dados = cv.toDataURL('image/jpeg', q);
+      while (dados.length > limiteKB * 1370 && q > 0.45) { q -= 0.1; dados = cv.toDataURL('image/jpeg', q); }
+      resolve(dados);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Não foi possível abrir essa imagem. Tente outra (JPG ou PNG).')); };
+    img.src = url;
+  });
+}
+
 let toastTimer;
 export function toast(msg, tipo = '') {
   const el = document.getElementById('toast');
