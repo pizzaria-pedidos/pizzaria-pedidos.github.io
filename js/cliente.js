@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=15';
-import * as U from './utils.js?v=15';
+} from './firebase-config.js?v=16';
+import * as U from './utils.js?v=16';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -356,7 +356,7 @@ function abrirInfo() {
       ${l.pedidoMinimo ? `<li><strong>🧾 Pedido mínimo</strong>${fmtBRL(l.pedidoMinimo)}</li>` : ''}
       ${l.tempoEntrega || l.tempoRetirada ? `<li><strong>⏱️ Tempo de espera</strong>${[entregaOn() && l.tempoEntrega ? `Entrega: ${esc(l.tempoEntrega)}` : '', l.tempoRetirada ? `Retirada: ${esc(l.tempoRetirada)}` : ''].filter(Boolean).join('<br>')}</li>` : ''}
       <li><strong>💳 Formas de pagamento</strong>${esc(pags)}</li>
-      ${l.whatsapp ? `<li><strong>📱 WhatsApp</strong><a class="link" href="https://wa.me/${esc(l.whatsapp)}">${esc(U.fmtTel(l.whatsapp))}</a></li>` : ''}
+      ${l.whatsapp ? `<li><strong>📱 WhatsApp</strong><a class="link" href="${esc(U.linkWhats(l.whatsapp))}">${esc(U.fmtTel(l.whatsapp))}</a></li>` : ''}
     </ul>`;
   abrirCamada($('#modal-info'));
 }
@@ -1043,7 +1043,7 @@ $('#btn-finalizar').addEventListener('click', async () => {
   if (!S.cliente.primeiroPedidoEm) S.cliente.primeiroPedidoEm = new Date();
   if (pedido.endereco) S.cliente.ultimoEndereco = pedido.endereco;
 
-  const url = `https://wa.me/${S.loja.whatsapp}?text=${encodeURIComponent(montarMensagem(pedido, info))}`;
+  const url = U.linkWhats(S.loja.whatsapp, montarMensagem(pedido, info));
   S.carrinho = [];
   salvarCarrinho();
   S.checkout.troco = '';

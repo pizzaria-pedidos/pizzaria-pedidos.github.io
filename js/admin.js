@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp,
-} from './firebase-config.js?v=15';
+} from './firebase-config.js?v=16';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=15';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=15';
+import * as U from './utils.js?v=16';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=16';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -378,7 +378,7 @@ function temposHTML(p) {
 function linkInformar(p) {
   const nome = apelidoDe(p.clienteTel) || String(p.clienteNome || '').split(' ')[0];
   const msg = U.mensagemPronto(S.loja, p, { nome, codigo: U.codigoPedido(p.id) });
-  return `https://wa.me/${p.clienteTel}?text=${encodeURIComponent(msg)}`;
+  return U.linkWhats(p.clienteTel, msg);
 }
 
 function pedidoHTML(p, comAcoes = true) {
@@ -412,7 +412,7 @@ function pedidoHTML(p, comAcoes = true) {
     ${comAcoes ? `<div class="pc-acoes">${principal}</div>
     <details class="pc-mais"><summary>⋯ Mais opções</summary>
       <label class="campo"><span>Mudar status / cancelar</span><select data-status="${esc(p.id)}" aria-label="Mudar status">${opcoes}</select></label>
-      <a class="link" href="https://wa.me/${esc(p.clienteTel)}" target="_blank" rel="noopener">Conversar no WhatsApp (sem mensagem)</a>
+      <a class="link" href="${esc(U.linkWhats(p.clienteTel))}" target="_blank" rel="noopener">Conversar no WhatsApp (sem mensagem)</a>
     </details>` : ''}
   </article>`;
 }
@@ -1234,7 +1234,7 @@ async function abrirCliente(id) {
     <h3 style="margin-bottom:10px">Histórico de pedidos</h3>
     <div id="cli-historico" class="lista-pedidos" style="grid-template-columns:1fr"><span class="sk sk-card"></span></div>`,
     `<button type="button" class="btn btn-perigo" id="cli-apagar">🗑️ Apagar cliente</button>
-     <a class="btn btn-whats" href="https://wa.me/${esc(r.telefone)}" target="_blank" rel="noopener">Chamar no WhatsApp</a>`);
+     <a class="btn btn-whats" href="${esc(U.linkWhats(r.telefone))}" target="_blank" rel="noopener">Chamar no WhatsApp</a>`);
   $('#cli-apagar').addEventListener('click', () => confirmarApagarCliente(r));
   try {
     const snap = await getDocs(query(collection(db, 'pedidos'), where('clienteTel', '==', r.telefone)));

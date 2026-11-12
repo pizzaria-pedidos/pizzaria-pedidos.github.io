@@ -293,6 +293,17 @@ export function mensagemPronto(loja, pedido, dados) {
     .replace(/\{total\}/gi, fmtBRL(pedido.total));
 }
 
+/**
+ * Link para abrir o WhatsApp com um número e (opcional) uma mensagem pronta.
+ * Usa api.whatsapp.com/send em vez de wa.me: o redirecionamento do wa.me
+ * estraga emojis (🍕, 🛵, 📲… viravam "?" ou "�"). O texto e o *negrito*
+ * continuam iguais — só muda o endereço.
+ */
+export function linkWhats(tel, texto = '') {
+  const num = String(tel || '').replace(/\D/g, '');
+  return `https://api.whatsapp.com/send?phone=${num}${texto ? `&text=${encodeURIComponent(texto)}` : ''}`;
+}
+
 let toastTimer;
 export function toast(msg, tipo = '') {
   const el = document.getElementById('toast');
