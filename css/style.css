@@ -712,3 +712,6 @@ table.res tr:last-child td { border-bottom: 0; }
 /* foto pequena do sabor no "Nossos sabores" */
 .sabor-foto { width: 52px; height: 52px; border-radius: 10px; flex-shrink: 0; }
 .sabor-foto[data-emoji]::before { font-size: 1.4rem; }
+
+/* Tempo de espera no resumo do carrinho */
+.resumo-tempo { margin-top: 10px; padding: 10px 12px; border-radius: var(--raio-peq); background: var(--superficie-2); font-size: 0.92rem; }

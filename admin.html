@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=10">
+  <link rel="stylesheet" href="css/style.css?v=11">
 </head>
 <body class="pg-admin">
   <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
@@ -50,6 +50,7 @@
           <div class="topo-botoes">
             <button type="button" class="btn btn-peq" id="btn-loja-toggle" data-toggle-loja>…</button>
             <button type="button" class="btn btn-peq" id="btn-entrega-toggle" data-toggle-entrega>…</button>
+            <button type="button" class="btn btn-peq btn-sec" id="btn-tempo">⏱️ Tempo de espera</button>
           </div>
         </div>
         <div class="filtros">
@@ -144,6 +145,12 @@
               <label class="campo"><span>Taxa de entrega (R$)</span><input name="taxaEntrega" inputmode="decimal" placeholder="0,00"></label>
               <label class="campo"><span>Pedido mínimo (R$)</span><input name="pedidoMinimo" inputmode="decimal" placeholder="0 = sem mínimo"></label>
             </div>
+            <p class="campo"><span>⏱️ Tempo de espera (vai no fim da mensagem do WhatsApp)</span></p>
+            <div class="linha-campos">
+              <label class="campo"><span>Entrega</span><input name="tempoEntrega" maxlength="40" placeholder="Ex.: 40 a 60 minutos"></label>
+              <label class="campo"><span>Retirada</span><input name="tempoRetirada" maxlength="40" placeholder="Ex.: 20 a 30 minutos"></label>
+            </div>
+            <small class="cu-dica" style="display:block;margin:-6px 0 14px">Deixe em branco para não mostrar. Para mudar rápido numa noite movimentada, use o botão ⏱️ no topo da tela de Pedidos.</small>
             <p class="campo"><span>Formas de pagamento aceitas</span></p>
             <div id="cfg-pagamentos" style="margin-bottom:12px"></div>
             <label class="campo"><span>Chave Pix (aparece para o cliente)</span><input name="chavePix" maxlength="120"></label>
@@ -214,6 +221,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="js/admin.js?v=10"></script>
+  <script type="module" src="js/admin.js?v=11"></script>
 </body>
 </html>

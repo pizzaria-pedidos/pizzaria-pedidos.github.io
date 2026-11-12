@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=10';
-import * as U from './utils.js?v=10';
+} from './firebase-config.js?v=11';
+import * as U from './utils.js?v=11';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -350,6 +350,7 @@ function abrirInfo() {
       <li><strong>🕒 Horário de funcionamento</strong><table class="horarios-tabela">${horarios}</table></li>
       <li><strong>🛵 Entrega</strong>${entregaOn() ? `Taxa: ${l.taxaEntrega ? fmtBRL(l.taxaEntrega) : 'grátis'}` : 'Hoje não estamos fazendo entregas — só retirada no local.'}</li>
       ${l.pedidoMinimo ? `<li><strong>🧾 Pedido mínimo</strong>${fmtBRL(l.pedidoMinimo)}</li>` : ''}
+      ${l.tempoEntrega || l.tempoRetirada ? `<li><strong>⏱️ Tempo de espera</strong>${[entregaOn() && l.tempoEntrega ? `Entrega: ${esc(l.tempoEntrega)}` : '', l.tempoRetirada ? `Retirada: ${esc(l.tempoRetirada)}` : ''].filter(Boolean).join('<br>')}</li>` : ''}
       <li><strong>💳 Formas de pagamento</strong>${esc(pags)}</li>
       ${l.whatsapp ? `<li><strong>📱 WhatsApp</strong><a class="link" href="https://wa.me/${esc(l.whatsapp)}">${esc(U.fmtTel(l.whatsapp))}</a></li>` : ''}
     </ul>`;
@@ -824,6 +825,7 @@ function renderCarrinho() {
     <div class="resumo-linha"><span>Subtotal</span><span>${fmtBRL(sub)}</span></div>
     ${entrega ? `<div class="resumo-linha"><span>Taxa de entrega</span><span>${tx ? fmtBRL(tx) : 'Grátis'}</span></div>` : ''}
     <div class="resumo-total"><span>Total</span><span>${fmtBRL(sub + tx)}</span></div>
+    ${U.tempoEspera(l, S.checkout.tipo) ? `<p class="resumo-tempo">⏱️ Tempo de espera estimado: <b>${esc(U.tempoEspera(l, S.checkout.tipo))}</b></p>` : ''}
     ${faltaMin ? `<p class="alerta">Pedido mínimo de ${fmtBRL(l.pedidoMinimo)}. Faltam ${fmtBRL(faltaMin)}.</p>` : ''}`;
 
   const est = estadoFinalizar();
@@ -990,6 +992,8 @@ function montarMensagem(p, info) {
   L.push('', `Subtotal: ${fmtBRL(p.subtotal)}`);
   if (p.tipo === 'entrega') L.push(`Taxa de entrega: ${p.taxaEntrega ? fmtBRL(p.taxaEntrega) : 'Grátis'}`);
   L.push(`*TOTAL: ${fmtBRL(p.total)}*`);
+  const tempo = U.tempoEspera(S.loja, p.tipo);
+  if (tempo) L.push('', `⏱️ *Tempo de espera estimado:* ${tempo}`);
   return L.join('\n');
 }
 

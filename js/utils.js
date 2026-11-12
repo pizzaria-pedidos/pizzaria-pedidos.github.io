@@ -62,6 +62,8 @@ export const DEFAULT_LOJA = {
   entregaAtiva: true,
   taxaEntrega: 0,
   pedidoMinimo: 0,
+  tempoEntrega: '',   // ex.: "40 a 60 minutos" — vai no fim da mensagem do WhatsApp
+  tempoRetirada: '',  // ex.: "20 a 30 minutos"
   pagamentos: ['pix', 'cartao', 'dinheiro'],
   chavePix: '',
   regraPrecoPizza: 'maior',
@@ -267,6 +269,11 @@ export function comprimirImagem(arquivo, max = 640, limiteKB = 120) {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Não foi possível abrir essa imagem. Tente outra (JPG ou PNG).')); };
     img.src = url;
   });
+}
+
+/** Tempo de espera configurado no painel para o tipo do pedido ('' = não mostrar) */
+export function tempoEspera(loja, tipo) {
+  return String((tipo === 'retirada' ? loja.tempoRetirada : loja.tempoEntrega) || '').trim();
 }
 
 let toastTimer;

@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp,
-} from './firebase-config.js?v=10';
+} from './firebase-config.js?v=11';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=10';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=10';
+import * as U from './utils.js?v=11';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=11';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -105,6 +105,7 @@ function iniciarPainel(user) {
     $('#menu-nome').textContent = S.loja.nome;
     renderBotaoLoja();
     renderBotaoEntrega();
+    renderBotaoTempo();
     if (S.view === 'cardapio') renderCrud();
     if (!S.cfgPreenchida) preencherConfig();
     if (S.view === 'clientes') renderClientes();
@@ -391,6 +392,43 @@ function renderBotaoLoja() {
 setInterval(() => S.user && renderBotaoLoja(), 60_000);
 
 // ---------- Ligar / desligar entrega (ex.: "hoje só retirada") ----------
+// ---------- Tempo de espera (botão rápido na tela de Pedidos) ----------
+function renderBotaoTempo() {
+  const l = S.loja;
+  const partes = [l.entregaAtiva !== false && l.tempoEntrega ? `🛵 ${l.tempoEntrega}` : '', l.tempoRetirada ? `🏃 ${l.tempoRetirada}` : ''].filter(Boolean);
+  $('#btn-tempo').textContent = partes.length ? `⏱️ ${partes.join(' · ')}` : '⏱️ Definir tempo de espera';
+}
+$('#btn-tempo').addEventListener('click', () => {
+  abrirModal('⏱️ Tempo de espera', `
+    <p class="cu-dica" style="margin-bottom:12px">Vai no fim da mensagem que o cliente te envia pelo WhatsApp, e ele também vê antes de finalizar. Deixe em branco para não mostrar.</p>
+    <form id="form-tempo" novalidate>
+      <label class="campo"><span>🛵 Entrega</span><input class="input" name="tempoEntrega" maxlength="40" placeholder="Ex.: 40 a 60 minutos" value="${esc(S.loja.tempoEntrega || '')}"></label>
+      <label class="campo"><span>🏃 Retirada</span><input class="input" name="tempoRetirada" maxlength="40" placeholder="Ex.: 20 a 30 minutos" value="${esc(S.loja.tempoRetirada || '')}"></label>
+      <div class="chips" style="margin-top:4px">${['30 a 45 minutos', '40 a 60 minutos', '1 hora', '1h30'].map((t) => `<button type="button" class="chip" data-tempo-rapido="${t}">${t}</button>`).join('')}</div>
+      <small class="cu-dica">Toque num atalho para preencher a <b>entrega</b>.</small>
+    </form>`,
+  `<button type="button" class="btn btn-sec" data-fechar>Cancelar</button>
+   <button type="submit" form="form-tempo" class="btn btn-primario">Salvar</button>`);
+  const f = $('#form-tempo');
+  f.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tempo-rapido]');
+    if (b) f.elements.tempoEntrega.value = b.dataset.tempoRapido;
+  });
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const dados = {
+      tempoEntrega: f.elements.tempoEntrega.value.trim().slice(0, 40),
+      tempoRetirada: f.elements.tempoRetirada.value.trim().slice(0, 40),
+    };
+    try {
+      await setDoc(doc(db, 'config', 'loja'), dados, { merge: true });
+      fecharModal();
+      U.toast('Tempo de espera atualizado ⏱️');
+    } catch (err) { tratarErro(err); U.toast('Erro ao salvar.', 'erro-t'); }
+  });
+  setTimeout(() => f.elements.tempoEntrega.focus(), 50);
+});
+
 function renderBotaoEntrega() {
   const on = S.loja.entregaAtiva !== false;
   $$('[data-toggle-entrega]').forEach((b) => {
@@ -1107,6 +1145,8 @@ function preencherConfig() {
   f.elements.endereco.value = l.endereco;
   f.elements.taxaEntrega.value = U.moneyInput(l.taxaEntrega);
   f.elements.pedidoMinimo.value = U.moneyInput(l.pedidoMinimo);
+  f.elements.tempoEntrega.value = l.tempoEntrega || '';
+  f.elements.tempoRetirada.value = l.tempoRetirada || '';
   f.elements.chavePix.value = l.chavePix;
   f.elements.ocultarIndisponiveis.checked = !!l.ocultarIndisponiveis;
   f.elements.limiteRecorrente.value = l.limiteRecorrente;
@@ -1153,6 +1193,8 @@ $('#form-config').addEventListener('submit', async (e) => {
     horarios,
     taxaEntrega: U.parseMoney(f.elements.taxaEntrega.value),
     pedidoMinimo: U.parseMoney(f.elements.pedidoMinimo.value),
+    tempoEntrega: f.elements.tempoEntrega.value.trim().slice(0, 40),
+    tempoRetirada: f.elements.tempoRetirada.value.trim().slice(0, 40),
     pagamentos,
     chavePix: f.elements.chavePix.value.trim(),
     regraPrecoPizza: f.elements.regraPrecoPizza.value,
