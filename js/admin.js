@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp,
-} from './firebase-config.js?v=11';
+} from './firebase-config.js?v=12';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=11';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=11';
+import * as U from './utils.js?v=12';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=12';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -26,6 +26,7 @@ const S = {
   col: 'categorias',
   cliSort: { col: 'ult', dir: -1 },
   som: U.lsGet('pz_admin_som', true),
+  somTipo: U.lsGet('pz_admin_som_tipo', 'padrao'),
   unsubs: [],
   unsubDia: null,
   cfgPreenchida: false,
@@ -175,33 +176,66 @@ function atualizarAvisoSom() {
   const precisa = S.user && S.som && (!audioCtx || audioCtx.state !== 'running');
   $('#ativar-som').hidden = !precisa;
 }
-function tocarAlerta() {
-  navigator.vibrate?.([300, 120, 300]);
-  if (!S.som || !audioCtx || audioCtx.state !== 'running') return;
-  const t0 = audioCtx.currentTime;
-  [0, 0.22, 0.44, 0.9, 1.12, 1.34].forEach((t, i) => {
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = 'triangle';
-    o.frequency.value = i % 3 === 2 ? 1318 : i % 3 === 1 ? 1046 : 784;
-    g.gain.setValueAtTime(0.0001, t0 + t);
-    g.gain.exponentialRampToValueAtTime(0.5, t0 + t + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + t + 0.2);
-    o.connect(g).connect(audioCtx.destination);
-    o.start(t0 + t);
-    o.stop(t0 + t + 0.22);
-  });
+/** Toca uma nota: frequência (Hz), início (s), duração (s), forma da onda, volume */
+function nota(freq, inicio, dur, tipo = 'sine', vol = 0.5) {
+  const t0 = audioCtx.currentTime + inicio;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = tipo;
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(audioCtx.destination);
+  o.start(t0);
+  o.stop(t0 + dur + 0.05);
+}
+// Sons de pedido novo (gerados pelo navegador — não precisa de arquivo de áudio)
+const SONS = {
+  padrao: { nome: 'Plim-plim (padrão)', tocar: () => [0, 0.22, 0.44, 0.9, 1.12, 1.34].forEach((t, i) => nota(i % 3 === 2 ? 1318 : i % 3 === 1 ? 1046 : 784, t, 0.2, 'triangle', 0.5)) },
+  campainha: { nome: 'Campainha (dim-dom)', tocar: () => [0, 1.1].forEach((t) => { nota(659, t, 0.9, 'sine', 0.6); nota(523, t + 0.45, 1.1, 'sine', 0.6); }) },
+  sino: { nome: 'Sino', tocar: () => [0, 0.7, 1.4].forEach((t) => { nota(880, t, 1.2, 'sine', 0.5); nota(1760, t, 0.6, 'sine', 0.15); nota(2637, t, 0.3, 'sine', 0.08); }) },
+  alarme: { nome: 'Alarme (bem chamativo)', tocar: () => { for (let i = 0; i < 12; i++) nota(i % 2 ? 660 : 990, i * 0.15, 0.13, 'square', 0.25); } },
+  bipes: { nome: 'Bipes rápidos', tocar: () => { for (let i = 0; i < 6; i++) nota(1250, i * 0.13 + (i >= 3 ? 0.35 : 0), 0.08, 'sine', 0.55); } },
+  melodia: { nome: 'Melodia', tocar: () => [[523, 0], [659, 0.15], [784, 0.3], [1047, 0.45], [784, 0.7], [1047, 0.85]].forEach(([f, t]) => nota(f, t, 0.24, 'triangle', 0.45)) },
+};
+function tocarAlerta(tipo = S.somTipo, forcar = false) {
+  if (!forcar) navigator.vibrate?.([300, 120, 300]);
+  if ((!S.som && !forcar) || !audioCtx || audioCtx.state !== 'running') return;
+  (SONS[tipo] || SONS.padrao).tocar();
+}
+function ouvirSom(tipo) {
+  garantirAudio();
+  const tocar = () => tocarAlerta(tipo, true);
+  if (audioCtx && audioCtx.state !== 'running') audioCtx.resume().then(tocar).catch(() => {});
+  else setTimeout(tocar, 50);
 }
 $('#ativar-som').addEventListener('click', () => { garantirAudio(); setTimeout(tocarAlerta, 100); });
 function renderBotaoSom() {
-  $('#btn-som').textContent = S.som ? '🔔 Som ligado' : '🔕 Som desligado';
+  $('#btn-som').textContent = S.som ? `🔔 Som: ${(SONS[S.somTipo] || SONS.padrao).nome.replace(/ \(.*\)/, '')}` : '🔕 Som desligado';
 }
 $('#btn-som').addEventListener('click', () => {
-  S.som = !S.som;
-  U.lsSet('pz_admin_som', S.som);
-  renderBotaoSom();
-  atualizarAvisoSom();
-  if (S.som) { garantirAudio(); setTimeout(tocarAlerta, 100); }
+  garantirAudio();
+  abrirModal('🔔 Som de pedido novo', `
+    <label class="check" style="margin-bottom:6px"><input type="checkbox" id="som-ligado" ${S.som ? 'checked' : ''}> <b>Tocar som quando chegar pedido</b></label>
+    <p class="cu-dica" style="margin-bottom:10px">Escolha o som e toque em ▶ para ouvir. Vale só para <b>este aparelho</b> (o PC e o celular podem ter sons diferentes).</p>
+    <div class="lista-sons">${Object.entries(SONS).map(([k, s]) => `
+      <div class="som-linha">
+        <label class="check"><input type="radio" name="som-tipo" value="${k}" ${S.somTipo === k ? 'checked' : ''}> ${s.nome}</label>
+        <button type="button" class="btn btn-sec btn-peq" data-ouvir="${k}">▶ Ouvir</button>
+      </div>`).join('')}</div>`,
+  '<button type="button" class="btn btn-primario btn-bloco" data-fechar>Pronto</button>');
+  const corpo = $('#modal-corpo');
+  corpo.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ouvir]');
+    if (b) ouvirSom(b.dataset.ouvir);
+  });
+  corpo.addEventListener('change', (e) => {
+    if (e.target.id === 'som-ligado') { S.som = e.target.checked; U.lsSet('pz_admin_som', S.som); }
+    if (e.target.name === 'som-tipo') { S.somTipo = e.target.value; U.lsSet('pz_admin_som_tipo', S.somTipo); ouvirSom(S.somTipo); }
+    renderBotaoSom();
+    atualizarAvisoSom();
+  });
 });
 
 // =====================================================================
@@ -298,6 +332,34 @@ function historicoClienteHTML(tel, pedidoId) {
   return `<div class="pc-hist">${etiqueta(c).html} <span>⭐ ${ordem}º pedido${desde ? ` · cliente desde ${desde}` : ''} · já gastou ${fmtBRL(c.totalGasto || 0)}</span></div>`;
 }
 
+// ---------- Tempo desde que o pedido foi feito (só pedidos em andamento) ----------
+const EM_ANDAMENTO = ['novo', 'preparo', 'saiu', 'pronto'];
+/** "40 a 60 minutos" → 60 · "1h30" → 90 · "1 hora" → 60 · texto vazio → 0 */
+function minutosMax(txt) {
+  const s = U.norm(txt);
+  let max = 0, x;
+  const re = /(\d+)\s*(?:h|hora|horas)\s*(\d+)?|(\d+)/g;
+  while ((x = re.exec(s))) max = Math.max(max, x[1] ? Number(x[1]) * 60 + Number(x[2] || 0) : Number(x[3]));
+  return max;
+}
+function textoEspera(ms) {
+  const min = Math.floor((Date.now() - ms) / 60000);
+  if (min < 1) return 'agora mesmo';
+  if (min < 60) return `há ${min} min`;
+  return `há ${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+}
+function atualizarEsperas() {
+  document.querySelectorAll('[data-desde]').forEach((el) => {
+    const ms = Number(el.dataset.desde);
+    const min = (Date.now() - ms) / 60000;
+    const limite = minutosMax(U.tempoEspera(S.loja, el.dataset.tipo));
+    el.classList.toggle('alerta', !!limite && min >= limite * 0.8 && min <= limite);
+    el.classList.toggle('atrasado', !!limite && min > limite);
+    el.textContent = `⏱️ ${textoEspera(ms)}${limite && min > limite ? ' · atrasado' : ''}`;
+  });
+}
+setInterval(atualizarEsperas, 20_000);
+
 function pedidoHTML(p, comAcoes = true) {
   const fluxo = U.fluxoStatus(p.tipo);
   const i = fluxo.indexOf(p.status);
@@ -310,6 +372,7 @@ function pedidoHTML(p, comAcoes = true) {
       <span class="pc-hora">${U.fmtHoraMin(U.toDate(p.criadoEm))}${comAcoes ? '' : ` · ${U.fmtData(U.toDate(p.criadoEm))}`}</span>
       <span class="status st-${esc(p.status)}">${U.STATUS[p.status]?.nome || esc(p.status)}</span>
     </div>
+    ${comAcoes && EM_ANDAMENTO.includes(p.status) && U.toDate(p.criadoEm) ? `<div class="pc-espera" data-desde="${U.toDate(p.criadoEm).getTime()}" data-tipo="${esc(p.tipo)}"></div>` : ''}
     <div class="pc-cliente">${esc(p.clienteNome)}${apelidoHTML(p.clienteTel)} <small>${U.fmtTel(p.clienteTel)}</small></div>
     ${comAcoes ? historicoClienteHTML(p.clienteTel, p.id) : ''}
     <div class="pc-bloco">${esc(enderecoTexto(p))}</div>
@@ -342,6 +405,7 @@ function renderPedidos(carregando = false) {
   el.innerHTML = lista.length
     ? lista.map((p) => pedidoHTML(p)).join('')
     : `<p class="vazio"><span class="emoji">🍕</span>${filtro ? 'Nenhum pedido com esse status.' : 'Nenhum pedido neste dia ainda.'}</p>`;
+  atualizarEsperas();
 }
 
 async function mudarStatus(id, novo) {

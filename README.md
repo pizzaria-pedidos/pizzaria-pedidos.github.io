@@ -49,6 +49,10 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **Novidade de 12/11/2026:**
   - Tempo de espera (entrega e retirada) configurável, no fim da mensagem do WhatsApp.
   - Versão dos arquivos `?v=11`.
+- **Novidade de 12/11/2026 (2):**
+  - Contador "há X min" em cada pedido, com cor laranja e vermelha pelo tempo de espera.
+  - 6 opções de som.
+  - Versão dos arquivos `?v=12`.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
 ```
@@ -159,6 +163,8 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
 - **Histórico do cliente só no painel:** a mensagem do WhatsApp **não** mostra "cliente novo / 1º pedido". No painel, cada card de pedido mostra "🆕 Cliente novo · 1º pedido" ou "⭐ 8º pedido · cliente desde 03/2026 · já gastou R$ X".
 - **Fotos da galeria:** em Cardápio (Produtos e Sabores) e em Ajustes (logo), toque em **📷 Escolher da galeria**. No celular, abre a galeria ou a câmera. O painel **diminui a foto sozinho** (cerca de 640 px, de 40 a 120 KB) e ela fica guardada no próprio Firestore, dentro do produto ou sabor. Por isso **não precisa do Firebase Storage**, que hoje exige o plano pago Blaze. Depois de escolher, toque em **Salvar**. Ainda dá para colar um link de imagem em "ou colar o link de uma imagem".
 - **Apagar cliente:** em **Clientes**, toque no cliente e depois em **🗑️ Apagar cliente**. Para cadastros de **teste**, marque **"Apagar também os pedidos"**: eles saem do faturamento e do Balanço. Para cliente real, deixe desmarcado, para manter o histórico de vendas. Não dá para desfazer.
+- **Há quanto tempo o cliente pediu:** cada pedido em andamento mostra **"⏱️ há 12 min"** desde a hora do pedido, atualizando sozinho. A etiqueta é verde no começo, fica **laranja** perto do limite (80% do tempo de espera configurado) e **vermelha piscando, com "atrasado"**, quando passa do limite (ex.: mais de 60 min em "40 a 60 minutos"). O contador some quando o pedido é concluído ou cancelado.
+- **Som de pedido novo:** o botão **🔔** na tela de Pedidos abre a escolha entre 6 sons: Plim-plim (padrão), Campainha, Sino, Alarme, Bipes rápidos e Melodia, cada um com **▶ Ouvir**. Ali também liga e desliga o som. A escolha vale **para cada aparelho**.
 - **Tempo de espera:** em **Ajustes → Entrega e pagamento**, preencha os campos **Entrega** e **Retirada** (ex.: "40 a 60 minutos"). Para mudar rápido, use o botão **⏱️** no topo da tela de Pedidos, que tem atalhos de 30 a 45 min, 40 a 60 min, 1 hora e 1h30. O tempo vai no **fim da mensagem do WhatsApp** ("⏱️ *Tempo de espera estimado:* …"), conforme o cliente escolheu entrega ou retirada, e aparece no resumo do carrinho e em "Mais informações". Em branco, não aparece.
 - **Hoje sem entrega:** toque em **🛵 Entrega ligada · Desligar**, no topo de Pedidos ou em Ajustes. O cliente vê "🏃 Hoje só retirada no local", a opção Entrega fica bloqueada e o pedido vai como retirada, sem taxa. Toque de novo para religar. Vale até você religar.
 - **Apelido do cliente:** na entrada, além do WhatsApp e do nome, o cliente pode informar um **apelido (opcional)**. O site cumprimenta pelo apelido ("Olá, Joãozinho!"), a mensagem do WhatsApp mostra "João Silva (Joãozinho)" e o painel mostra o apelido nos pedidos e em Clientes. A busca também procura pelo apelido.
@@ -223,5 +229,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=11` → `?v=12` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=12` → `?v=13` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

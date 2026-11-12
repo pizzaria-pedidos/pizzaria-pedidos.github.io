@@ -715,3 +715,12 @@ table.res tr:last-child td { border-bottom: 0; }
 
 /* Tempo de espera no resumo do carrinho */
 .resumo-tempo { margin-top: 10px; padding: 10px 12px; border-radius: var(--raio-peq); background: var(--superficie-2); font-size: 0.92rem; }
+
+/* Tempo desde o pedido (painel) */
+.pc-espera { align-self: flex-start; font-weight: 800; font-size: 0.9rem; padding: 4px 12px; border-radius: 999px; background: var(--ok-fundo); color: var(--ok); }
+.pc-espera.alerta { background: var(--aviso-fundo); color: var(--aviso); }
+.pc-espera.atrasado { background: var(--erro); color: #fff; animation: pisca 1.4s infinite; }
+/* Escolha do som */
+.lista-sons { border: 1px solid var(--borda); border-radius: var(--raio-peq); padding: 2px 12px; background: var(--superficie); }
+.som-linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--borda); }
+.som-linha:last-child { border-bottom: 0; }
