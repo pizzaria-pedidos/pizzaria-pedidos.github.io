@@ -107,16 +107,31 @@ export const fmtBRL = (v) =>
 export const numPedido = (n) => (n ? `#${String(n).padStart(4, '0')}` : '');
 
 /**
- * Número do pedido mostrado ao cliente e no painel: 4 dígitos "aleatórios"
- * (1000–9999), calculados a partir do ID do pedido — que o Firebase já gera
- * aleatório. Assim o número é sempre o mesmo no WhatsApp, no site e no painel,
- * sem precisar gravar nada a mais (nem mudar as regras do Firestore).
+ * Código do pedido mostrado ao cliente e no painel: 6 caracteres de letras e
+ * números (ex.: K7Q2M9), sempre com pelo menos uma letra e um número.
+ * É calculado a partir do ID do pedido — que o Firebase já gera aleatório —,
+ * então é sempre o mesmo no WhatsApp, no site e no painel, sem gravar nada a
+ * mais (nem mudar as regras do Firestore). Sem 0/O, 1/I/L para não confundir.
  */
+const LETRAS = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+const DIGITOS = '23456789';
+const ALFABETO = LETRAS + DIGITOS;
 export function codigoPedido(id) {
   if (!id) return '';
-  let h = 2166136261;
-  for (const ch of String(id)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
-  return String(1000 + (h % 9000));
+  let a = 2166136261, b = 5381;
+  for (const ch of String(id)) {
+    a ^= ch.charCodeAt(0); a = Math.imul(a, 16777619) >>> 0;
+    b = (Math.imul(b, 33) + ch.charCodeAt(0)) >>> 0;
+  }
+  let cod = '';
+  for (let i = 0; i < 6; i++) {
+    const fonte = i < 3 ? a : b;
+    cod += ALFABETO[fonte % ALFABETO.length];
+    if (i < 3) a = Math.floor(a / ALFABETO.length); else b = Math.floor(b / ALFABETO.length);
+  }
+  if (!/[0-9]/.test(cod)) cod = cod.slice(0, 5) + DIGITOS[a % DIGITOS.length];
+  if (!/[A-Z]/.test(cod)) cod = LETRAS[b % LETRAS.length] + cod.slice(1);
+  return cod;
 }
 
 /** "8,50" / "8.50" / "R$ 8,50" → 8.5 */

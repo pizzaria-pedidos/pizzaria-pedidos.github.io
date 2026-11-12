@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp,
-} from './firebase-config.js?v=5';
+} from './firebase-config.js?v=6';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=5';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=5';
+import * as U from './utils.js?v=6';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=6';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -417,7 +417,12 @@ $$('[data-toggle-loja]').forEach((b) => b.addEventListener('click', async () => 
 // =====================================================================
 //  Cardápio (CRUD genérico)
 // =====================================================================
-const tamanhosPizza = () => [...new Set(S.produtos.filter((p) => p.tipo === 'pizza' && p.tamanho).map((p) => p.tamanho))];
+/** Tamanhos das pizzas LIGADAS (ex.: só Grande). Se todas estiverem desligadas, mostra todas. */
+function tamanhosPizza() {
+  const pizzas = S.produtos.filter((p) => p.tipo === 'pizza' && p.tamanho);
+  const ligadas = pizzas.filter((p) => p.disponivel !== false);
+  return [...new Set((ligadas.length ? ligadas : pizzas).map((p) => p.tamanho))];
+}
 const nomeCategoria = (id) => S.categorias.find((c) => c.id === id)?.nome || 'Sem categoria';
 
 const SCHEMAS = {
@@ -463,7 +468,7 @@ const SCHEMAS = {
       { k: 'disponivel', t: 'bool', label: 'Disponível', def: true },
     ],
     sub: (s) => [
-      Object.entries(s.precos || {}).map(([t, v]) => `${t} ${fmtBRL(v)}`).join(' · ') || 'sem preço',
+      Object.entries(s.precos || {}).filter(([t]) => tamanhosPizza().includes(t)).map(([t, v]) => `${t} ${fmtBRL(v)}`).join(' · ') || 'sem preço',
       s.ingredientes || '',
     ].filter(Boolean).join(' — '),
   },
@@ -627,8 +632,8 @@ function campoHTML(c, v) {
     case 'categoria':
       return `<label class="campo ${cls}"><span>${c.label}</span><select name="${c.k}"><option value="">Escolha…</option>${S.categorias.map((cat) => `<option value="${esc(cat.id)}" ${v === cat.id ? 'selected' : ''}>${esc(cat.nome)}</option>`).join('')}</select>${ajuda}</label>`;
     case 'precos': {
+      // só os tamanhos ligados; preços de tamanhos desligados ficam guardados (não aparecem)
       const tams = tamanhosPizza();
-      Object.keys(v || {}).forEach((t) => { if (!tams.includes(t)) tams.push(t); });
       return `<div class="campo ${cls}"><span>${c.label}</span>${tams.length
         ? `<div class="precos-tamanho">${tams.map((t) => `<label class="campo" style="margin:0"><span style="font-weight:600">${esc(t)}</span><input data-tam="${esc(t)}" inputmode="decimal" placeholder="não vende" value="${esc(U.moneyInput(v?.[t]))}"></label>`).join('')}</div><small>Deixe vazio para não oferecer o sabor naquele tamanho.</small>`
         : '<small>Nenhum tamanho de pizza cadastrado ainda (crie um produto do tipo pizza).</small>'}</div>`;
@@ -698,7 +703,9 @@ async function salvarForm(col, item, form) {
       case 'int': dados[c.k] = Math.max(c.min ?? 0, parseInt(el.value, 10) || c.def || 0); break;
       case 'bool': dados[c.k] = el.checked; break;
       case 'precos':
-        dados.precos = {};
+        // mantém guardado o preço dos tamanhos desligados (ex.: Média) — se religar, volta
+        dados.precos = Object.fromEntries(Object.entries(item?.precos || {})
+          .filter(([t]) => !$$('[data-tam]', form).some((i) => i.dataset.tam === t)));
         $$('[data-tam]', form).forEach((i) => {
           const n = U.parseMoney(i.value);
           if (n > 0) dados.precos[i.dataset.tam] = n;

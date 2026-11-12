@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=5';
-import * as U from './utils.js?v=5';
+} from './firebase-config.js?v=6';
+import * as U from './utils.js?v=6';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -910,7 +910,7 @@ async function registrarPedido(pedido) {
 const SEP = '━━━━━━━━━━━━━━';
 function montarMensagem(p, info) {
   const L = [];
-  L.push(info.codigo ? `🍕 *Número do seu pedido: ${info.codigo}*` : '🍕 *Seu pedido*', '');
+  L.push(info.codigo ? `🍕 *Código do seu pedido: ${info.codigo}*` : '🍕 *Seu pedido*', '');
   const apelido = (S.cliente?.apelido || '').trim();
   L.push(`👤 *Cliente:* ${p.clienteNome}${apelido ? ` (${apelido})` : ''}`);
   L.push(`📱 *WhatsApp:* ${U.fmtTel(p.clienteTel)}`);
@@ -995,7 +995,7 @@ $('#btn-finalizar').addEventListener('click', async () => {
 
   fecharTodasCamadas();
   $('#sucesso-link').href = url;
-  $('#sucesso-texto').innerHTML = `${info.codigo ? `Número do seu pedido: <b>${info.codigo}</b>. ` : ''}Estamos abrindo o WhatsApp com o resumo. É só tocar em <b>enviar</b> ➤`;
+  $('#sucesso-texto').innerHTML = `${info.codigo ? `Código do seu pedido: <b>${info.codigo}</b>. ` : ''}Estamos abrindo o WhatsApp com o resumo. É só tocar em <b>enviar</b> ➤`;
   $('#tela-sucesso').hidden = false;
   setTimeout(() => { window.location.href = url; }, 400);
 });
