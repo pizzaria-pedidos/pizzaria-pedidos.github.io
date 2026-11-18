@@ -1,0 +1,2 @@
+{ "name": "testes-pizzaria", "private": true, "type": "module",
+  "devDependencies": { "firebase": "10.12.2", "firebase-tools": "^13" } }

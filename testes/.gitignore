@@ -1,0 +1,8 @@
+node_modules/
+package-lock.json
+out-*.txt
+emu.log
+*-debug.log
+regras-teste.rules
+backup-eduardo.json
+shots*/

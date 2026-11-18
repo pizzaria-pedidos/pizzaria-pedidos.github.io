@@ -1,0 +1,8 @@
+{"clientes":{},"pedidos":{},"config":{},"custos":{"v":2,"pin":"habc",
+ "massa":{"rende":4,"itens":[{"id":"farinha","nome":"Farinha de trigo","pacote":1,"un":"kg","preco":5,"usa":1000}]},
+ "base":{"itens":[{"id":"molho","nome":"Molho de tomate","pacote":1,"un":"kg","preco":10,"usa":100},{"id":"mussarela","nome":"Mussarela","pacote":1,"un":"kg","preco":40,"usa":200}]},
+ "sabores":{"Calabresa":{"itens":[{"id":"c","nome":"Calabresa","pacote":1,"un":"kg","preco":30,"usa":150}]},
+            "Frango c/ Catupiry":{"itens":[{"id":"f","nome":"Frango","pacote":1,"un":"kg","preco":20,"usa":200}]},
+            "Napolitana":{"itens":[{"id":"n","nome":"Tomate","pacote":1,"un":"kg","preco":8,"usa":100}]}},
+ "bordas":{"Catupiry":{"itens":[{"id":"cat","nome":"Catupiry","pacote":1,"un":"kg","preco":30,"usa":100}]},"Cheddar":{"itens":[{"id":"ch","nome":"Cheddar","pacote":"","un":"kg","preco":"","usa":""}]}},
+ "bebidas":{"Refrigerante 2L":{"qtd":6,"preco":48},"Coca Lata":{"qtd":12,"preco":36}}}}

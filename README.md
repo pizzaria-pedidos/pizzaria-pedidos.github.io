@@ -1,5 +1,7 @@
 # 🍕 Site de Pedidos da Pizzaria (v1)
 
+> 👉 **Novo chat / outra pessoa assumindo o projeto?** Comece pelo **[CONTEXTO.md](CONTEXTO.md)**: ele resume tudo o que foi feito e decidido. Os testes automáticos estão em [`testes/`](testes/LEIA-ME.md).
+
 O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o resumo pronto para enviar à pizzaria. Você acompanha tudo em tempo real no painel.
 
 - **`index.html`**: página do cliente (cardápio, montagem da pizza, carrinho, "Meus pedidos")
