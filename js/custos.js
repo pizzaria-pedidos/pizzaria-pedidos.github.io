@@ -9,8 +9,9 @@
 // =====================================================================
 import {
   db, doc, setDoc, onSnapshot, collection, query, where, writeBatch, Timestamp, serverTimestamp,
-} from './firebase-config.js?v=16';
-import * as U from './utils.js?v=16';
+} from './firebase-config.js?v=17';
+import * as U from './utils.js?v=17';
+import * as N from './notas.js?v=17';
 
 const { esc, fmtBRL: brl } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -19,7 +20,8 @@ let ctx;                     // { S, tratarErro, abrirModal, fecharModal }
 let CU = normCU(null);       // fichas em memória
 let carregado = false;
 let aberto = false;
-let TAB = 'balanco', FICHA = 'massa';
+let TAB = 'balanco', FICHA = 'ingredientes';
+let NOTA = null, NOTA_RES = null;   // nota fiscal em conferência / resultado da última aplicada
 let SABSEL = '', BORSEL = '', ADSEL = '', GRAMTAM = '';
 let DIA = inicioDia(new Date());
 let ultimaEdicao = 0;
@@ -45,9 +47,54 @@ function normCU(d) {
   c.simples = c.simples || {};
   c.tamanhos = c.tamanhos || { ref: '', fator: {} };
   c.tamanhos.fator = c.tamanhos.fator || {};
+  // lista única de ingredientes: { id: { id, nome, base:'kg'|'L'|'un', preco (R$ por base), emb, hist:[{d,p,desc}], at } }
+  c.ingredientes = c.ingredientes || {};
+  c.apelidos = c.apelidos || {};          // o que a nota escreve → ingrediente (aprendido na conferência)
+  c.lucroMinimo = c.lucroMinimo ?? '';
+  if (migrar(c)) c._migrou = true;
   return c;
 }
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function hojeISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function r4(n) { return Math.round((Number(n) || 0) * 10000) / 10000; }
+/**
+ * Fichas antigas guardavam pacote + preço em cada linha. Agora cada linha só aponta
+ * para um ingrediente da lista única ({ id, ing, usa }). Junta os de mesmo nome.
+ */
+function migrar(c) {
+  let mudou = false;
+  const porNome = {};
+  Object.values(c.ingredientes).forEach((i) => { porNome[U.norm(i.nome).trim()] = i.id; });
+  const listas = [c.massa.itens, c.base.itens, ...['sabores', 'bordas', 'adicionais'].flatMap((g) => Object.values(c[g] || {}).map((x) => x.itens || []))];
+  const BASE = { kg: 'kg', g: 'kg', L: 'L', ml: 'L', un: 'un' };
+  const CONV = { kg: 1, g: 0.001, L: 1, ml: 0.001, un: 1 };
+  for (const L of listas) {
+    for (let k = 0; k < L.length; k++) {
+      const it = L[k];
+      if (it.ing !== undefined) continue;
+      mudou = true;
+      const nome = String(it.nome || '').trim();
+      if (!nome) { L[k] = { id: it.id || uid(), ing: '', usa: it.usa ?? '' }; continue; }
+      const base = BASE[it.un] || 'kg';
+      const emb = num(it.pacote) * (CONV[it.un] || 1);
+      const preco = emb > 0 && num(it.preco) > 0 ? num(it.preco) / emb : 0;
+      const chave = U.norm(nome).trim();
+      let id = porNome[chave];
+      if (!id) {
+        id = uid();
+        c.ingredientes[id] = { id, nome, base, preco: r4(preco), emb: r4(emb), hist: preco > 0 ? [{ d: hojeISO(), p: r4(preco), desc: 'fichas anteriores' }] : [], at: '' };
+        porNome[chave] = id;
+      } else if (!(num(c.ingredientes[id].preco) > 0) && preco > 0) {
+        Object.assign(c.ingredientes[id], { preco: r4(preco), emb: r4(emb) });
+      }
+      L[k] = { id: it.id || uid(), ing: id, usa: it.usa ?? '' };
+    }
+  }
+  return mudou;
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 /** Aceita "4,20", "4.20", 4.2 */
 function num(v) {
   const n = parseFloat(String(v ?? '').replace(/\s/g, '').replace(',', '.'));
@@ -57,12 +104,32 @@ function inicioDia(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x;
 
 // Unidade do pacote → [unidade de uso, multiplicador]
 const UN = { kg: ['g', 1000], g: ['g', 1], L: ['ml', 1000], ml: ['ml', 1], un: ['un', 1] };
-const unUso = (it) => (UN[it.un] || UN.un)[0];
-/** custo do que vai = preço do pacote ÷ tamanho do pacote × quanto usa */
+// Unidade-base do ingrediente → [unidade em que a ficha diz "quanto vai", divisor]
+const USO = { kg: ['g', 1000], L: ['ml', 1000], un: ['un', 1] };
+const ingDe = (it) => (it && it.ing ? CU.ingredientes[it.ing] : null);
+const nomeItem = (it) => ingDe(it)?.nome || it.nome || '?';
+function unUso(it) {
+  if (it.ing !== undefined) return (USO[ingDe(it)?.base] || USO.kg)[0];
+  return (UN[it.un] || UN.un)[0];
+}
+/** custo do que vai na receita = preço do ingrediente (por kg/L/un) × quanto vai */
 function custoItem(it) {
+  if (it.ing !== undefined) {
+    const ing = ingDe(it);
+    return ing ? (num(ing.preco) * num(it.usa)) / (USO[ing.base] || USO.kg)[1] : 0;
+  }
   const tam = num(it.pacote) * (UN[it.un] || UN.un)[1];
   return tam > 0 ? (num(it.preco) / tam) * num(it.usa) : 0;
 }
+const precoTexto = (ing) => (num(ing.preco) > 0 ? `${brl(ing.preco)}/${ing.base}` : 'sem preço');
+const fmtD = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
+const fmtNum = (n) => (Number(n) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+function novoIngrediente(nome, base = 'kg', preco = 0) {
+  const id = uid();
+  CU.ingredientes[id] = { id, nome, base, preco: r4(preco), emb: 0, hist: preco > 0 ? [{ d: hojeISO(), p: r4(preco), desc: 'cadastro' }] : [], at: preco > 0 ? hojeISO() : '' };
+  return id;
+}
+const listaIngredientes = () => Object.values(CU.ingredientes).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 const somaItens = (lista) => (lista || []).reduce((s, it) => s + custoItem(it), 0);
 const custoReceita = () => somaItens(CU.massa.itens);
 const custoDisco = () => (num(CU.massa.rende) > 0 ? custoReceita() / num(CU.massa.rende) : 0);
@@ -170,6 +237,17 @@ function salvar() {
   }, 700);
 }
 
+/** Grava já (sem esperar) — usado ao aplicar uma nota fiscal */
+function salvarAgora() {
+  clearTimeout(_t);
+  agendado = false;
+  ultimaEdicao = Date.now();
+  emAndamento++;
+  return setDoc(refFichas(), CU)
+    .catch((e) => { ctx.tratarErro(e); U.toast('Erro ao salvar custos.', 'erro-t'); })
+    .finally(() => { emAndamento--; ultimaEdicao = Date.now(); });
+}
+
 export function iniciarCustos(c) {
   ctx = c;
   pararCustos();
@@ -177,6 +255,7 @@ export function iniciarCustos(c) {
     if (carregado && (agendado || emAndamento > 0 || s.metadata.hasPendingWrites || Date.now() - ultimaEdicao < 3000)) return;
     CU = normCU(s.exists() ? s.data() : null);
     carregado = true;
+    if (CU._migrou) { delete CU._migrou; salvar(); }
     if (aberto && !digitando()) render();
   }, ctx.tratarErro));
   gravarAutomatico();
@@ -307,8 +386,8 @@ export function sairCustos() {
 // ---------------------------------------------------------------------
 //  Render
 // ---------------------------------------------------------------------
-const ABAS = [['balanco', '📒', 'Balanço'], ['fichas', '📋', 'Fichas'], ['lucro', '💲', 'Lucro'], ['gramas', '⚖️', 'Gramas']];
-const FICHAS = [['massa', 'Massa'], ['base', 'Base e tamanhos'], ['sabores', 'Sabores'], ['bordas', 'Bordas'], ['adicionais', 'Adicionais'], ['simples', 'Bebidas e outros']];
+const ABAS = [['balanco', '📒', 'Balanço'], ['nota', '📥', 'Nota fiscal'], ['fichas', '📋', 'Fichas'], ['lucro', '💲', 'Lucro'], ['gramas', '⚖️', 'Gramas']];
+const FICHAS = [['ingredientes', '🧾 Ingredientes'], ['massa', 'Massa'], ['base', 'Base e tamanhos'], ['sabores', 'Sabores'], ['bordas', 'Bordas'], ['adicionais', 'Adicionais'], ['simples', 'Bebidas e outros']];
 
 function render() {
   if (!aberto) return;
@@ -325,8 +404,9 @@ function render() {
 function corpo() {
   if (TAB === 'lucro') return viewLucro();
   if (TAB === 'gramas') return viewGramas();
+  if (TAB === 'nota') return viewNota();
   if (TAB === 'balanco') return '<div id="cu-bal"><span class="sk sk-card"></span></div>';
-  return { massa: viewMassa, base: viewBase, sabores: viewSabores, bordas: viewBordas, adicionais: viewAdicionais, simples: viewSimples }[FICHA]();
+  return { ingredientes: viewIngredientes, massa: viewMassa, base: viewBase, sabores: viewSabores, bordas: viewBordas, adicionais: viewAdicionais, simples: viewSimples }[FICHA]();
 }
 
 // ---------- Tabela de ingredientes (igual em todas as fichas) ----------
@@ -338,15 +418,17 @@ function listaAtual() {
   if (!G[sel]) G[sel] = { itens: [] };
   return G[sel].itens;
 }
+function opcoesIng(sel) {
+  return `<option value="">Escolha o ingrediente…</option>${listaIngredientes().map((i) => `<option value="${esc(i.id)}" ${i.id === sel ? 'selected' : ''}>${esc(i.nome)}</option>`).join('')}<option value="__novo">➕ Novo ingrediente…</option>`;
+}
 function tabelaItens(lista, rotuloUso) {
-  let h = `<div class="cartao"><div class="mrow head"><span>Ingrediente</span><span>Pacote</span><span>Paguei no pacote</span><span>${rotuloUso}</span><span class="num">Custo</span><span></span></div>`;
+  let h = `<div class="cartao"><div class="mrow ming head"><span>Ingrediente <small>(o preço vem de 🧾 Ingredientes)</small></span><span>${rotuloUso}</span><span class="num">Custo</span><span></span></div>`;
   if (!lista.length) h += '<p class="vazio" style="padding:16px">Nenhum ingrediente. Toque em “+ Ingrediente”.</p>';
   lista.forEach((it, i) => {
-    h += `<div class="mrow">
-      <label class="m-nm"><span>Ingrediente</span><input class="input" data-ci="m" data-i="${i}" data-f="nome" value="${esc(it.nome)}" placeholder="Nome do ingrediente"></label>
-      <label class="m-pc"><span>Pacote</span><div class="inl"><input class="input" inputmode="decimal" data-ci="m" data-i="${i}" data-f="pacote" value="${esc(it.pacote)}" placeholder="1">
-        <select class="input" data-ci="m" data-i="${i}" data-f="un" aria-label="Unidade do pacote">${Object.keys(UN).map((u) => `<option ${it.un === u ? 'selected' : ''}>${u}</option>`).join('')}</select></div></label>
-      <label class="m-pg"><span>Paguei no pacote</span><div class="inl"><span class="u">R$</span><input class="input" inputmode="decimal" data-ci="m" data-i="${i}" data-f="preco" value="${esc(it.preco)}" placeholder="0,00"></div></label>
+    const ing = ingDe(it);
+    h += `<div class="mrow ming">
+      <label class="m-nm"><span>Ingrediente</span><select class="input" data-ci="ing" data-i="${i}">${opcoesIng(it.ing)}</select>
+        <small class="m-preco">${ing ? (num(ing.preco) > 0 ? precoTexto(ing) : '⚠️ sem preço — preencha em 🧾 Ingredientes') : ''}</small></label>
       <label class="m-us"><span>${rotuloUso}</span><div class="inl"><input class="input" inputmode="decimal" data-ci="m" data-i="${i}" data-f="usa" value="${esc(it.usa)}" placeholder="0"><span class="u" data-un="${i}">${unUso(it)}</span></div></label>
       <div class="m-ct" data-calc="${i}">${brl(custoItem(it))}</div>
       <button type="button" class="m-x btn-icone" data-cu="mDel" data-i="${i}" aria-label="Remover ingrediente">✕</button>
@@ -364,7 +446,7 @@ const p = (t) => `<p class="cu-dica">${t}</p>`;
 // ---------- Massa ----------
 function viewMassa() {
   return `<h2 class="cu-h2">Massa</h2>
-  ${p('Para cada ingrediente: o tamanho do pacote, quanto pagou no pacote e quanto vai na receita. A conta é feita sozinha.')}
+  ${p('Escolha cada ingrediente e diga quanto vai na receita. O preço vem da aba 🧾 Ingredientes (e da 📥 Nota fiscal) — a conta é feita sozinha.')}
   ${tabelaItens(CU.massa.itens, 'Vai na receita')}
   <div class="cartao"><label class="campo" style="margin:0"><span>Essa receita rende quantos discos${tamRef() ? ` (pizza ${esc(tamRef())})` : ''}?</span>
     <input class="input" inputmode="decimal" data-ci="rende" value="${esc(CU.massa.rende)}" placeholder="Ex.: 4" style="max-width:160px"></label></div>
@@ -403,7 +485,7 @@ function viewBase() {
   </div>` : '<div class="cartao">' + p('Cadastre produtos do tipo pizza (com tamanho) no Cardápio.') + '</div>'}`;
 }
 function resBase() {
-  const nomes = CU.base.itens.map((it) => esc(it.nome || '?').toLowerCase()).join(' + ');
+  const nomes = CU.base.itens.map((it) => esc(nomeItem(it)).toLowerCase()).join(' + ');
   return `<div class="cartao">${destaque(`Custo da <b>base de 1 pizza</b>${tamRef() ? ` ${esc(tamRef())}` : ''}<small>disco + ${nomes}</small>`, brl(custoBase()))}</div>`;
 }
 
@@ -505,6 +587,7 @@ function bebCalc(b) {
 
 /** Atualiza só os números, sem redesenhar os campos (não perde o foco) */
 function refreshCalcs() {
+  if (TAB !== 'fichas' || FICHA === 'ingredientes') return;
   if (FICHA === 'simples') {
     produtosSimples().forEach((b) => { const el = document.querySelector(`[data-bcalc="${CSS.escape(b.id)}"]`); if (el) el.innerHTML = bebCalc(b); });
     return;
@@ -517,25 +600,325 @@ function refreshCalcs() {
   if (r) r.innerHTML = { massa: resMassa, base: resBase, sabores: resSabor, bordas: resBorda, adicionais: resAdic }[FICHA]();
 }
 
+// ---------- 🧾 Ingredientes (lista única) ----------
+function usosDoIngrediente(id) {
+  const usa = (lista) => (lista || []).some((it) => it.ing === id);
+  const nomes = [];
+  if (usa(CU.massa.itens)) nomes.push('Massa');
+  if (usa(CU.base.itens)) nomes.push('Base');
+  ctx.S.sabores.forEach((x) => { if (usa(CU.sabores[x.id]?.itens)) nomes.push(x.nome); });
+  ctx.S.bordas.forEach((x) => { if (usa(CU.bordas[x.id]?.itens)) nomes.push(`borda ${x.nome}`); });
+  ctx.S.adicionais.forEach((x) => { if (usa(CU.adicionais[x.id]?.itens)) nomes.push(x.nome); });
+  return nomes;
+}
+/** variação entre as duas últimas compras: "🔺 +10,0%" */
+function variacao(hist) {
+  const h = hist || [];
+  if (h.length < 2) return '';
+  const a = num(h[h.length - 2].p), b = num(h[h.length - 1].p);
+  if (!(a > 0)) return '';
+  const pct = ((b - a) / a) * 100;
+  if (Math.abs(pct) < 0.5) return '= mesmo preço';
+  return `${pct > 0 ? '🔺 +' : '🔻 '}${pct.toFixed(1).replace('.', ',')}%`;
+}
+const BASES = { kg: 'kg (por peso)', L: 'L (líquido)', un: 'un (por unidade)' };
+function viewIngredientes() {
+  const ings = listaIngredientes();
+  return `<h2 class="cu-h2">🧾 Ingredientes</h2>
+  ${p('Cada ingrediente aparece <b>uma vez só</b>, com o preço por kg, litro ou unidade. As fichas (massa, base, sabores, bordas) usam esses preços: mudou aqui, <b>todas as pizzas se recalculam</b>. O jeito mais fácil de atualizar é pela aba <b>📥 Nota fiscal</b>.')}
+  <div class="lista-toolbar"><button type="button" class="btn btn-primario btn-peq" data-cu="ingNovo">+ Novo ingrediente</button></div>
+  ${ings.length ? ings.map((ing) => {
+    const usos = usosDoIngrediente(ing.id);
+    const hist = [...(ing.hist || [])].reverse();
+    const v = variacao(ing.hist);
+    return `<div class="cartao ing-card${num(ing.preco) > 0 ? '' : ' ing-sem'}">
+      <div class="ing-linha">
+        <label class="campo ing-nome"><span>Nome</span><input class="input" data-ci="ingNome" data-id="${esc(ing.id)}" value="${esc(ing.nome)}" maxlength="40"></label>
+        <label class="campo ing-preco"><span>Preço (R$ por ${ing.base})</span><input class="input" inputmode="decimal" data-ci="ingPreco" data-id="${esc(ing.id)}" value="${num(ing.preco) > 0 ? String(U.round2(ing.preco)).replace('.', ',') : ''}" placeholder="0,00"></label>
+        <label class="campo ing-base"><span>Unidade</span><select class="input" data-ci="ingBase" data-id="${esc(ing.id)}">${Object.entries(BASES).map(([k, t]) => `<option value="${k}" ${ing.base === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      </div>
+      <small class="ing-info">${ing.at ? `Última compra: <b>${fmtD(ing.at)}</b>` : 'Sem compra registrada'}${v ? ` · <b class="${v.startsWith('🔺') ? 'neg' : 'okc'}">${v}</b>` : ''} · ${usos.length ? `usado em: ${esc(usos.join(', '))}` : '<i>não usado em nenhuma ficha</i>'}</small>
+      ${hist.length ? `<details class="ing-hist"><summary>📈 Histórico de preços (${hist.length})</summary>
+        <div class="tbl"><table class="res"><tr><th>Data</th><th>Preço</th><th>Produto</th></tr>
+        ${hist.map((x) => `<tr><td>${fmtD(x.d)}</td><td>${brl(x.p)}/${ing.base}</td><td>${esc(x.desc || '')}</td></tr>`).join('')}</table></div></details>` : ''}
+      ${usos.length ? '' : `<button type="button" class="link link-perigo" data-cu="ingDel" data-id="${esc(ing.id)}">Excluir ingrediente</button>`}
+    </div>`;
+  }).join('') : `<div class="cartao">${p('Nenhum ingrediente ainda. Toque em “+ Novo ingrediente” ou atualize pela 📥 Nota fiscal.')}</div>`}`;
+}
+function formNovoIngrediente(aoCriar) {
+  ctx.abrirModal('Novo ingrediente', `
+    <form id="cu-fing" novalidate>
+      <label class="campo"><span>Nome (genérico, sem marca)</span><input class="input" id="cu-ing-nome" placeholder="Ex.: Calabresa" maxlength="40"></label>
+      <label class="campo"><span>Como você compra</span><select class="input" id="cu-ing-base">
+        <option value="kg">Por peso (preço por kg)</option><option value="L">Líquido (preço por litro)</option><option value="un">Por unidade (preço por unidade)</option></select></label>
+      <label class="campo"><span>Preço (opcional)</span><input class="input" id="cu-ing-preco" inputmode="decimal" placeholder="Ex.: 24,99"></label>
+      <p class="erro" id="cu-ing-erro"></p>
+    </form>`,
+  `<button type="button" class="btn btn-sec" data-fechar>Cancelar</button>
+   <button type="submit" form="cu-fing" class="btn btn-primario">Criar</button>`);
+  setTimeout(() => $('#cu-ing-nome')?.focus(), 50);
+  $('#cu-fing').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const nome = $('#cu-ing-nome').value.trim();
+    if (!nome) { $('#cu-ing-erro').textContent = 'Informe o nome.'; return; }
+    if (Object.values(CU.ingredientes).some((i) => U.norm(i.nome).trim() === U.norm(nome))) { $('#cu-ing-erro').textContent = 'Já existe um ingrediente com esse nome.'; return; }
+    const id = novoIngrediente(nome, $('#cu-ing-base').value, num($('#cu-ing-preco').value));
+    aoCriar?.(id);
+    salvar();
+    ctx.fecharModal();
+    render();
+  });
+}
+
+// ---------- 📥 Nota fiscal ----------
+const unDestino = (o) => (o.destino.startsWith('ing:') ? CU.ingredientes[o.destino.slice(4)]?.base || 'kg' : o.destino === 'novo' ? o.novoBase : 'un');
+/** Recalcula quanto foi comprado (na unidade do destino) quando o destino muda */
+function calcQtdLinha(o) {
+  o.q = 0; o.certo = true;
+  if (o.destino.startsWith('ing:')) {
+    const ing = CU.ingredientes[o.destino.slice(4)];
+    if (ing) Object.assign(o, N.qtdNaBase(o, ing.base, num(ing.emb)));
+  } else if (o.destino === 'novo') {
+    Object.assign(o, N.qtdNaBase(o, o.novoBase));
+  } else if (o.destino.startsWith('simples:')) {
+    const prev = CU.simples[o.destino.slice(8)];
+    const porPacote = o.porPacote || num(prev?.qtd) || 0;
+    o.q = o.uq === 'un' ? o.qtd * (porPacote || 1) : o.qtd;
+    o.certo = !!porPacote || o.uq !== 'un';
+  }
+  o.q = r4(o.q);
+}
+function precoAntes(o) {
+  if (o.destino.startsWith('ing:')) return num(CU.ingredientes[o.destino.slice(4)]?.preco);
+  if (o.destino.startsWith('simples:')) return simplesCustoUn(o.destino.slice(8));
+  return 0;
+}
+function resLinha(o) {
+  if (!(num(o.q) > 0)) return '<span class="warnc">⚠️ Informe quanto foi comprado</span>';
+  const pu = num(o.total) / num(o.q);
+  const ant = precoAntes(o);
+  let comp = ' · primeiro preço';
+  if (ant > 0) {
+    const pct = ((pu - ant) / ant) * 100;
+    comp = ` · antes ${brl(ant)} ${Math.abs(pct) < 0.5 ? '(igual)' : `<b class="${pct > 0 ? 'neg' : 'okc'}">${pct > 0 ? '🔺 +' : '🔻 '}${pct.toFixed(1).replace('.', ',')}%</b>`}`;
+  }
+  return `= <b>${brl(pu)}/${unDestino(o)}</b>${comp}${o.certo ? '' : ' <span class="warnc">· confira a quantidade</span>'}`;
+}
+function lerNotaColada() {
+  const texto = $('#cu-nota-texto')?.value || '';
+  const lida = N.lerNota(texto);
+  if (!lida.linhas.length) { U.toast('Não encontrei itens. Confira se o texto está no formato do pedido para a IA.', 'erro-t'); return; }
+  const ings = listaIngredientes();
+  const simples = produtosSimples();
+  NOTA = {
+    data: lida.data || hojeISO(),
+    linhas: lida.linhas.map((l) => {
+      const sug = N.sugerir(l.desc, ings, simples, CU.apelidos);
+      const o = { ...l, destino: sug.destino, certeza: sug.certeza, novoNome: N.nomeSugerido(l.desc), novoBase: N.baseDaLinha(l) };
+      calcQtdLinha(o);
+      return o;
+    }),
+  };
+  NOTA_RES = null;
+  render();
+}
+function opcoesDestino(o) {
+  const ings = listaIngredientes();
+  const simples = produtosSimples();
+  const op = (v, t) => `<option value="${esc(v)}" ${o.destino === v ? 'selected' : ''}>${t}</option>`;
+  return `${op('', '— escolha —')}
+    <optgroup label="Ingredientes">${ings.map((i) => op(`ing:${i.id}`, esc(i.nome))).join('')}</optgroup>
+    ${simples.length ? `<optgroup label="Bebidas e outros (cardápio)">${simples.map((x) => op(`simples:${x.id}`, esc(x.nome))).join('')}</optgroup>` : ''}
+    ${op('novo', '➕ Novo ingrediente')}
+    ${op('ignorar', '🚫 Ignorar (não entra no custo)')}`;
+}
+function linhaNotaHTML(o, i) {
+  const selo = o.certeza === 'aprendido' ? '<span class="tag tag-recorrente">✓ já conhecido</span>'
+    : o.destino ? '<span class="tag tag-novo">sugestão — confira</span>' : '<span class="tag tag-sumido">escolha</span>';
+  const ativo = o.destino && o.destino !== 'ignorar';
+  return `<div class="cartao nota-linha${o.destino ? '' : ' pendente'}${o.destino === 'ignorar' ? ' ignorada' : ''}" id="nl-${i}">
+    <div class="nl-topo"><b>${esc(o.desc)}</b>${selo}</div>
+    <small class="nl-orig">${fmtNum(o.qtd)}${o.uq !== 'un' ? ` ${o.uq}` : ''} × ${brl(o.preco)} = ${brl(o.total)}</small>
+    <label class="campo"><span>É qual ingrediente?</span><select class="input" data-nl="${i}" data-campo="destino">${opcoesDestino(o)}</select></label>
+    ${o.destino === 'novo' ? `<div class="linha-campos">
+      <label class="campo"><span>Nome do novo ingrediente</span><input class="input" data-nl="${i}" data-campo="novoNome" value="${esc(o.novoNome)}" maxlength="40"></label>
+      <label class="campo"><span>Unidade</span><select class="input" data-nl="${i}" data-campo="novoBase">${Object.entries(BASES).map(([k, t]) => `<option value="${k}" ${o.novoBase === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div>` : ''}
+    ${ativo ? `<div class="linha-campos">
+      <label class="campo"><span>Quantidade comprada (${unDestino(o)})</span><input class="input${o.certo ? '' : ' conferir'}" inputmode="decimal" data-nl="${i}" data-campo="q" value="${o.q > 0 ? String(o.q).replace('.', ',') : ''}" placeholder="${o.destino.startsWith('simples:') || unDestino(o) === 'un' ? 'Ex.: 25' : 'Ex.: 2'}"></label>
+      <label class="campo"><span>Total pago (R$)</span><input class="input" inputmode="decimal" data-nl="${i}" data-campo="total" value="${String(o.total).replace('.', ',')}"></label></div>
+      <div class="nl-res" id="nlres-${i}">${resLinha(o)}</div>` : ''}
+  </div>`;
+}
+function viewNota() {
+  if (NOTA_RES) return viewNotaResultado();
+  if (!NOTA) {
+    return `<h2 class="cu-h2">📥 Atualizar preços pela nota fiscal</h2>
+    <div class="cartao">
+      <b>1. No app do Claude</b> ${p('Mande a foto do cupom fiscal junto com este pedido (toque para copiar):')}
+      <button type="button" class="btn btn-sec btn-peq" data-cu="copiarPrompt">📋 Copiar pedido para a IA</button>
+      <details class="prompt-ia"><summary>Ver o pedido</summary><pre>${esc(N.PROMPT_IA)}</pre></details>
+    </div>
+    <div class="cartao">
+      <b>2. Cole aqui o resumo que a IA devolver</b>
+      <textarea class="input nota-texto" id="cu-nota-texto" rows="9" placeholder="Compra de 15/11/2026&#10;* Queijo mussarela Morro Alto: 4,154 kg × 36,99 = 153,66&#10;* Farinha de trigo Finna 1 kg: 4 × 4,59 = 18,36&#10;…"></textarea>
+      <button type="button" class="btn btn-primario btn-bloco" data-cu="lerNota" style="margin-top:10px">Ler nota</button>
+    </div>
+    ${p('Depois você confere linha por linha antes de aplicar. Marcas diferentes (Aurora, Perdigão…) vão para o mesmo ingrediente.')}`;
+  }
+  const soma = NOTA.linhas.reduce((t, o) => t + num(o.total), 0);
+  const pend = NOTA.linhas.filter((o) => !o.destino).length;
+  return `<h2 class="cu-h2">📥 Confira a nota antes de aplicar</h2>
+  <div class="cartao nota-resumo">
+    <label class="campo" style="margin:0"><span>Data da compra</span><input type="date" class="input" data-nl="data" data-campo="data" value="${esc(NOTA.data)}" style="max-width:200px"></label>
+    <div><b>${NOTA.linhas.length}</b> itens · soma <b>${brl(soma)}</b>${pend ? ` · <span class="warnc">${pend} sem destino</span>` : ''}</div>
+  </div>
+  ${NOTA.linhas.map(linhaNotaHTML).join('')}
+  <div class="nota-acoes">
+    <button type="button" class="btn btn-sec" data-cu="notaCancelar">Cancelar</button>
+    <button type="button" class="btn btn-primario" data-cu="notaAplicar">✅ Aplicar preços</button>
+  </div>`;
+}
+function notaMudou(el, mudouSelect) {
+  if (!NOTA) return;
+  const campo = el.dataset.campo;
+  if (campo === 'data') { NOTA.data = el.value || hojeISO(); return; }
+  const i = +el.dataset.nl;
+  const o = NOTA.linhas[i];
+  if (!o) return;
+  if (campo === 'destino') {
+    if (!mudouSelect) return;
+    o.destino = el.value; o.certeza = '';
+    calcQtdLinha(o);
+  } else if (campo === 'novoBase') {
+    if (!mudouSelect) return;
+    o.novoBase = el.value;
+    calcQtdLinha(o);
+  } else if (campo === 'novoNome') { o.novoNome = el.value; return; }
+  else if (campo === 'q') { o.q = num(el.value); o.certo = true; el.classList.remove('conferir'); }
+  else if (campo === 'total') { o.total = num(el.value); }
+  if (campo === 'q' || campo === 'total') { const r = document.getElementById(`nlres-${i}`); if (r) r.innerHTML = resLinha(o); return; }
+  const card = document.getElementById(`nl-${i}`);
+  if (card) card.outerHTML = linhaNotaHTML(o, i);
+}
+/** Custos e lucros (tamanho de referência) para comparar antes × depois */
+function fotografiaCustos() {
+  const ref = tamRef(), base = custoBase(), f = {};
+  ctx.S.sabores.forEach((x) => {
+    const venda = num(x.precos?.[ref]);
+    if (venda > 0) f[`s:${x.id}`] = { nome: `Pizza ${x.nome}`, custo: (base + recheioCusto(x.id)) * fator(ref), venda, pizza: true };
+  });
+  ctx.S.bordas.filter((b) => b.preco > 0).forEach((b) => { f[`b:${b.id}`] = { nome: `Borda ${b.nome}`, custo: bordaCusto(b.id), venda: b.preco }; });
+  ctx.S.adicionais.forEach((a) => { f[`a:${a.id}`] = { nome: a.nome, custo: adicCusto(a.id), venda: a.preco }; });
+  produtosSimples().forEach((x) => { f[`p:${x.id}`] = { nome: x.nome, custo: simplesCustoUn(x.id), venda: x.preco }; });
+  return f;
+}
+function aplicarNota() {
+  if (!NOTA) return;
+  const sem = NOTA.linhas.findIndex((o) => !o.destino);
+  if (sem >= 0) { U.toast('Escolha o destino de todas as linhas (ou “Ignorar”).', 'erro-t'); document.getElementById(`nl-${sem}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  const ruim = NOTA.linhas.findIndex((o) => o.destino !== 'ignorar' && !(num(o.q) > 0 && num(o.total) > 0));
+  if (ruim >= 0) { U.toast('Informe a quantidade comprada e o total da linha marcada.', 'erro-t'); document.getElementById(`nl-${ruim}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  const novoSemNome = NOTA.linhas.findIndex((o) => o.destino === 'novo' && !String(o.novoNome || '').trim());
+  if (novoSemNome >= 0) { U.toast('Dê um nome ao ingrediente novo.', 'erro-t'); return; }
+
+  const antes = fotografiaCustos();
+  const grupos = {};
+  for (const o of NOTA.linhas) {
+    const sig = N.assinatura(o.desc);
+    if (o.destino === 'ignorar') { if (sig) CU.apelidos[sig] = 'ignorar'; continue; }
+    let dest = o.destino;
+    if (dest === 'novo') {
+      const chave = U.norm(o.novoNome).trim();
+      const existe = Object.values(CU.ingredientes).find((i) => U.norm(i.nome).trim() === chave);
+      dest = `ing:${existe ? existe.id : novoIngrediente(o.novoNome.trim(), o.novoBase)}`;
+    }
+    if (sig) CU.apelidos[sig] = dest;   // aprende para a próxima nota
+    const g = (grupos[dest] ||= { q: 0, total: 0, descs: [], linhas: [] });
+    g.q += num(o.q); g.total += num(o.total); g.descs.push(o.desc); g.linhas.push(o);
+  }
+  const mudancas = [];
+  for (const [dest, g] of Object.entries(grupos)) {
+    const pu = g.total / g.q;
+    const desc = g.descs.join(' + ');
+    if (dest.startsWith('ing:')) {
+      const ing = CU.ingredientes[dest.slice(4)];
+      const ant = num(ing.preco);
+      ing.preco = r4(pu);
+      ing.at = NOTA.data;
+      ing.hist = [...(ing.hist || []), { d: NOTA.data, p: r4(pu), desc }].slice(-40);
+      const l0 = g.linhas[0];
+      if (l0.uq === 'un' && l0.qtd > 0) ing.emb = r4(num(l0.q) / l0.qtd); // aprende o tamanho da embalagem
+      mudancas.push({ nome: ing.nome, un: ing.base, antes: ant, depois: pu, id: ing.id });
+    } else if (dest.startsWith('simples:')) {
+      const pid = dest.slice(8);
+      const prev = CU.simples[pid] || {};
+      const ant = simplesCustoUn(pid);
+      const l0 = g.linhas[0];
+      const porPacote = l0.qtd > 0 ? num(l0.q) / l0.qtd : g.q;
+      CU.simples[pid] = { ...prev, qtd: r4(porPacote), preco: U.round2(g.total / (g.q / porPacote)), at: NOTA.data, hist: [...(prev.hist || []), { d: NOTA.data, p: r4(pu), desc }].slice(-40) };
+      mudancas.push({ nome: produtosSimples().find((x) => x.id === pid)?.nome || 'Produto', un: 'un', antes: ant, depois: pu });
+    }
+  }
+  salvarAgora();
+  const depois = fotografiaCustos();
+  const impacto = Object.keys(depois).map((k) => ({ ...depois[k], custoAntes: antes[k]?.custo ?? 0 }))
+    .filter((x) => Math.abs(x.custo - x.custoAntes) >= 0.005)
+    .sort((a, b) => (b.custo - b.custoAntes) - (a.custo - a.custoAntes));
+  NOTA_RES = { data: NOTA.data, mudancas, impacto };
+  NOTA = null;
+  U.toast(`${mudancas.length} preço(s) atualizado(s) ✓`);
+  render();
+  window.scrollTo({ top: 0 });
+}
+function viewNotaResultado() {
+  const R = NOTA_RES;
+  const min = num(CU.lucroMinimo);
+  const pct = (a, b) => (a > 0 ? `${b >= a ? '🔺 +' : '🔻 '}${(((b - a) / a) * 100).toFixed(1).replace('.', ',')}%` : 'novo');
+  const baixas = R.impacto.filter((x) => x.pizza && min > 0 && x.venda - x.custo < min);
+  const embs = R.mudancas.filter((m) => m.id && /embalag|caixa/i.test(m.nome) && !usosDoIngrediente(m.id).length);
+  return `<h2 class="cu-h2">✅ Preços atualizados — compra de ${fmtD(R.data)}</h2>
+  ${baixas.length ? `<div class="cu-aviso">⚠️ ${baixas.length} pizza(s) com lucro abaixo de ${brl(min)}: <b>${baixas.map((x) => esc(x.nome)).join(', ')}</b></div>` : ''}
+  ${min > 0 ? '' : p('Dica: defina na aba 💲 Lucro o lucro mínimo por pizza para receber alertas aqui.')}
+  ${embs.map((m) => `<div class="cu-aviso cu-info">📦 <b>${esc(m.nome)}</b> vai em toda pizza? <button type="button" class="btn btn-sec btn-peq" data-cu="embBase" data-id="${esc(m.id)}">➕ Colocar 1 na Base</button></div>`).join('')}
+  <div class="cartao"><b>Preços</b><div class="tbl"><table class="res"><tr><th>Item</th><th>Antes</th><th>Agora</th><th>Variação</th></tr>
+    ${R.mudancas.map((m) => `<tr><td>${esc(m.nome)}</td><td>${m.antes > 0 ? `${brl(m.antes)}/${m.un}` : '—'}</td><td><b>${brl(m.depois)}/${m.un}</b></td><td class="${m.depois > m.antes && m.antes > 0 ? 'neg' : 'okc'}">${pct(m.antes, m.depois)}</td></tr>`).join('')}
+  </table></div></div>
+  <div class="cartao"><b>O que mudou no custo e no lucro</b>${R.impacto.length ? `<div class="tbl"><table class="res"><tr><th>Produto</th><th>Custo antes</th><th>Custo agora</th><th>Lucro agora</th></tr>
+    ${R.impacto.map((x) => { const baixo = x.pizza && min > 0 && x.venda - x.custo < min; return `<tr class="${baixo ? 'lucro-baixo' : ''}"><td>${baixo ? '⚠️ ' : ''}${esc(x.nome)}</td><td>${brl(x.custoAntes)}</td><td><b>${brl(x.custo)}</b></td><td class="${x.venda - x.custo < 0 || baixo ? 'neg' : 'okc'}"><b>${brl(x.venda - x.custo)}</b></td></tr>`; }).join('')}
+  </table></div>` : p('Nenhum produto do cardápio mudou de custo (os itens desta nota ainda não estão em nenhuma ficha).')}</div>
+  ${p('Os pedidos antigos continuam com o custo do dia em que foram feitos. Os novos já usam os preços novos.')}
+  <button type="button" class="btn btn-primario btn-bloco" data-cu="notaNova">📥 Ler outra nota</button>`;
+}
+
 // ---------- Lucro por produto ----------
 function viewLucro() {
-  const linha = (nome, custo, venda, ok) => `<tr><td>${esc(nome)}</td>${ok
-    ? `<td>${brl(custo)}</td><td>${brl(venda)}</td><td><b class="${venda - custo < 0 ? 'neg' : 'okc'}">${brl(venda - custo)}</b></td>`
-    : '<td colspan="3" class="cu-falta">falta preencher</td>'}</tr>`;
+  const min = num(CU.lucroMinimo);
+  const baixas = [];
+  const linha = (nome, custo, venda, ok, pizza = false) => {
+    const baixo = pizza && ok && min > 0 && venda - custo < min;
+    if (baixo) baixas.push(nome);
+    return `<tr class="${baixo ? 'lucro-baixo' : ''}"><td>${baixo ? '⚠️ ' : ''}${esc(nome)}</td>${ok
+      ? `<td>${brl(custo)}</td><td>${brl(venda)}</td><td><b class="${venda - custo < 0 || baixo ? 'neg' : 'okc'}">${brl(venda - custo)}</b></td>`
+      : '<td colspan="3" class="cu-falta">falta preencher</td>'}</tr>`;
+  };
   const cab = (t) => `<tr><th>${t}</th><th>Custo</th><th>Venda</th><th>Lucro</th></tr>`;
   const base = custoBase();
   const tabela = (t, linhas) => `<div class="cartao"><div class="tbl"><table class="res">${cab(t)}${linhas}</table></div></div>`;
-  let h = `<h2 class="cu-h2">Lucro por produto</h2>${p('Quanto custa, quanto você vende e quanto sobra de cada um.')}`;
+  let h = `<h2 class="cu-h2">Lucro por produto</h2>${p('Quanto custa, quanto você vende e quanto sobra de cada um.')}
+  <div class="cartao"><label class="campo" style="margin:0"><span>⚠️ Me avise quando o lucro de uma pizza ficar abaixo de (R$)</span>
+    <input class="input" inputmode="decimal" data-ci="lucroMin" value="${esc(CU.lucroMinimo ?? '')}" placeholder="Ex.: 15" style="max-width:160px"></label></div>
+  <div id="cu-alerta-lucro"></div>`;
   for (const t of tamanhos()) {
     const sabs = ctx.S.sabores.filter((s) => num(s.precos?.[t]) > 0);
     if (!sabs.length) continue;
-    h += tabela(`Pizza ${esc(t)}`, sabs.map((s) => linha(s.nome, (base + recheioCusto(s.id)) * fator(t), num(s.precos[t]), base > 0 && recheioCusto(s.id) > 0)).join(''));
+    h += tabela(`Pizza ${esc(t)}`, sabs.map((s) => linha(s.nome, (base + recheioCusto(s.id)) * fator(t), num(s.precos[t]), base > 0 && recheioCusto(s.id) > 0, true)).join(''));
   }
   const bs = ctx.S.bordas.filter((b) => b.preco > 0);
   if (bs.length) h += tabela(`Borda${tamRef() ? ` (${esc(tamRef())})` : ''}`, bs.map((b) => linha(b.nome, bordaCusto(b.id), b.preco, bordaCusto(b.id) > 0)).join(''));
   if (ctx.S.adicionais.length) h += tabela('Adicional', ctx.S.adicionais.map((a) => linha(a.nome, adicCusto(a.id), a.preco, adicCusto(a.id) > 0)).join(''));
   const ps = produtosSimples();
   if (ps.length) h += tabela('Bebidas e outros', ps.map((b) => linha(b.nome, simplesCustoUn(b.id), b.preco, simplesCustoUn(b.id) > 0)).join(''));
+  if (baixas.length) h = h.replace('<div id="cu-alerta-lucro"></div>', `<div class="cu-aviso">⚠️ ${baixas.length} pizza(s) com lucro abaixo de ${brl(min)}: <b>${baixas.map(esc).join(', ')}</b></div>`);
   return h;
 }
 
@@ -552,18 +935,18 @@ function viewGramas() {
   ${fatorDefinido(GRAMTAM) ? '' : `<div class="cu-aviso">⚠️ A proporção da pizza ${esc(GRAMTAM)} ainda não foi definida (Fichas → Base e tamanhos). Mostrando igual à ${esc(tamRef())}.</div>`}
   <div class="cartao"><b>Toda pizza${GRAMTAM ? ` ${esc(GRAMTAM)}` : ''} (qualquer sabor e fração)</b>
     <div class="tbl"><table class="res"><tr><th>Item</th><th>Quantidade</th></tr>
-    <tr><td>Disco de massa</td><td>1 un</td></tr>${B.map((it) => `<tr><td>${esc(it.nome)}</td><td>${fmtQ(num(it.usa) * f, unUso(it))}</td></tr>`).join('')}</table></div></div>`;
+    <tr><td>Disco de massa</td><td>1 un</td></tr>${B.map((it) => `<tr><td>${esc(nomeItem(it))}</td><td>${fmtQ(num(it.usa) * f, unUso(it))}</td></tr>`).join('')}</table></div></div>`;
   const sabs = ctx.S.sabores.filter((s) => (CU.sabores[s.id]?.itens || []).some((it) => num(it.usa) > 0));
   sabs.forEach((s) => {
     const its = CU.sabores[s.id].itens.filter((it) => num(it.usa) > 0);
     h += `<div class="cartao"><b>${esc(s.nome)}</b><div class="tbl"><table class="res"><tr><th>Recheio</th><th>Inteira</th><th>Metade ½</th><th>Terço ⅓</th></tr>
-      ${its.map((it) => { const u = unUso(it), q = num(it.usa) * f; return `<tr><td>${esc(it.nome)}</td><td><b>${fmtQ(q, u)}</b></td><td>${fmtQ(q / 2, u)}</td><td>${fmtQ(q / 3, u)}</td></tr>`; }).join('')}
+      ${its.map((it) => { const u = unUso(it), q = num(it.usa) * f; return `<tr><td>${esc(nomeItem(it))}</td><td><b>${fmtQ(q, u)}</b></td><td>${fmtQ(q / 2, u)}</td><td>${fmtQ(q / 3, u)}</td></tr>`; }).join('')}
     </table></div></div>`;
   });
   const bors = ctx.S.bordas.filter((b) => (CU.bordas[b.id]?.itens || []).some((it) => num(it.usa) > 0));
   if (bors.length) {
     h += `<div class="cartao"><b>Bordas (por borda)</b><div class="tbl"><table class="res"><tr><th>Borda</th><th>Item</th><th>Quantidade</th></tr>
-      ${bors.map((b) => CU.bordas[b.id].itens.filter((it) => num(it.usa) > 0).map((it) => `<tr><td>${esc(b.nome)}</td><td>${esc(it.nome)}</td><td>${fmtQ(num(it.usa) * f, unUso(it))}</td></tr>`).join('')).join('')}
+      ${bors.map((b) => CU.bordas[b.id].itens.filter((it) => num(it.usa) > 0).map((it) => `<tr><td>${esc(b.nome)}</td><td>${esc(nomeItem(it))}</td><td>${fmtQ(num(it.usa) * f, unUso(it))}</td></tr>`).join('')).join('')}
     </table></div></div>`;
   }
   const faltam = ctx.S.sabores.length - sabs.length;
@@ -679,6 +1062,7 @@ async function importarAntigo(arquivo) {
   Object.assign(CU.sabores, novos.sabores);
   Object.assign(CU.bordas, novos.bordas);
   Object.assign(CU.simples, novos.simples);
+  migrar(CU);
   ultimaEdicao = Date.now();
   try {
     await setDoc(refFichas(), CU);
@@ -712,14 +1096,36 @@ document.addEventListener('click', (e) => {
     return;
   }
   if (a === 'mAdd') {
-    listaAtual().push(novoItem());
+    listaAtual().push({ id: uid(), ing: '', usa: '' });
     salvar(); render();
-    setTimeout(() => { const ins = document.querySelectorAll('[data-ci="m"][data-f="nome"]'); ins[ins.length - 1]?.focus(); }, 30);
+    setTimeout(() => { const ins = document.querySelectorAll('[data-ci="ing"]'); ins[ins.length - 1]?.focus(); }, 30);
+    return;
+  }
+  if (a === 'ingNovo') { formNovoIngrediente(); return; }
+  if (a === 'ingDel') {
+    const ing = CU.ingredientes[t.dataset.id];
+    if (!ing || !confirm(`Excluir o ingrediente “${ing.nome}”?`)) return;
+    delete CU.ingredientes[ing.id];
+    Object.keys(CU.apelidos).forEach((k) => { if (CU.apelidos[k] === `ing:${ing.id}`) delete CU.apelidos[k]; });
+    salvar(); render();
+    return;
+  }
+  if (a === 'copiarPrompt') {
+    navigator.clipboard?.writeText(N.PROMPT_IA).then(() => U.toast('Pedido copiado ✓ — cole no app do Claude junto com a foto'), () => U.toast('Não foi possível copiar. Selecione o texto e copie.'));
+    return;
+  }
+  if (a === 'lerNota') { lerNotaColada(); return; }
+  if (a === 'notaCancelar') { NOTA = null; render(); return; }
+  if (a === 'notaAplicar') { aplicarNota(); return; }
+  if (a === 'notaNova') { NOTA = null; NOTA_RES = null; render(); return; }
+  if (a === 'embBase') {
+    CU.base.itens.push({ id: uid(), ing: t.dataset.id, usa: 1 });
+    salvarAgora(); U.toast('Embalagem colocada na Base: agora entra no custo de toda pizza ✓'); render();
     return;
   }
   if (a === 'mDel') {
     const L = listaAtual(), it = L[+t.dataset.i];
-    if (!confirm(`Remover “${it.nome || 'ingrediente'}”?`)) return;
+    if (!confirm(`Remover “${nomeItem(it) === '?' ? 'ingrediente' : nomeItem(it)}”?`)) return;
     L.splice(+t.dataset.i, 1); salvar(); render();
   }
 });
@@ -729,6 +1135,20 @@ function aoEditar(e) {
   if (!el) return;
   const ci = el.dataset.ci;
   if (ci === 'm') listaAtual()[+el.dataset.i][el.dataset.f] = el.value;
+  else if (ci === 'ing') {
+    if (el.value === '__novo') { const i = +el.dataset.i; render(); formNovoIngrediente((id) => { listaAtual()[i].ing = id; }); return; }
+    listaAtual()[+el.dataset.i].ing = el.value; salvar(); render(); return;
+  }
+  else if (ci === 'ingNome' || ci === 'ingPreco' || ci === 'ingBase') {
+    const ing = CU.ingredientes[el.dataset.id];
+    if (!ing) return;
+    if (ci === 'ingNome') ing.nome = el.value.trimStart().slice(0, 40);
+    if (ci === 'ingPreco') ing.preco = r4(num(el.value));
+    if (ci === 'ingBase') { ing.base = el.value; salvar(); render(); return; }
+    salvar();
+    return;
+  }
+  else if (ci === 'lucroMin') { CU.lucroMinimo = el.value; salvar(); return; }
   else if (ci === 'rende') CU.massa.rende = el.value;
   else if (ci === 'simples') CU.simples[el.dataset.id] = { ...(CU.simples[el.dataset.id] || {}), [el.dataset.f]: el.value };
   else if (ci === 'fator') CU.tamanhos.fator[el.dataset.tam] = el.value;
@@ -736,8 +1156,27 @@ function aoEditar(e) {
   salvar();
   refreshCalcs();
 }
-document.addEventListener('input', aoEditar);
+document.addEventListener('input', (e) => {
+  if (e.target.closest('#v-custos [data-nl]')) { notaMudou(e.target, false); return; }
+  aoEditar(e);
+});
 document.addEventListener('change', (e) => {
   if (e.target.id === 'cu-importar' && e.target.files[0]) { importarAntigo(e.target.files[0]); e.target.value = ''; return; }
+  // preço mudado à mão → entra no histórico
+  if (e.target.matches('#v-custos [data-ci="ingPreco"]')) {
+    const ing = CU.ingredientes[e.target.dataset.id];
+    if (ing && num(ing.preco) > 0) {
+      const h = ing.hist || [];
+      const ult = h[h.length - 1];
+      if (ult && ult.d === hojeISO() && ult.desc === 'ajuste manual') ult.p = ing.preco;
+      else if (!ult || ult.p !== ing.preco) h.push({ d: hojeISO(), p: ing.preco, desc: 'ajuste manual' });
+      ing.hist = h.slice(-40);
+      ing.at = hojeISO();
+      salvar();
+    }
+    return;
+  }
+  if (e.target.matches('#v-custos [data-ci="lucroMin"]')) { render(); return; }
+  if (e.target.closest('#v-custos [data-nl]')) { notaMudou(e.target, true); return; }
   if (e.target.matches('#v-custos select[data-ci]')) aoEditar(e);
 });

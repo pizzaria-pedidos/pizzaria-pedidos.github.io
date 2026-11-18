@@ -743,3 +743,35 @@ table.res tr:last-child td { border-bottom: 0; }
 .pc-mais[open] { background: var(--superficie-2); border-radius: var(--raio-peq); padding: 4px 10px 10px; }
 .pc-mais .campo { margin: 6px 0 8px; }
 .pc-mais select { width: 100%; min-height: 40px; border-radius: var(--raio-peq); border: 1px solid var(--borda); background: var(--superficie); padding: 0 10px; font-weight: 700; }
+
+/* =====================================================================
+   Custos: lista única de ingredientes + nota fiscal
+   ===================================================================== */
+.mrow.ming { grid-template-columns: minmax(0, 2fr) 170px 110px 44px; grid-template-areas: "nm us ct x"; }
+.mrow.ming.head small { font-weight: 600; }
+.m-preco { display: block; color: var(--texto-2); font-size: 0.8rem; font-weight: 700; margin-top: 4px; }
+@media (max-width: 760px) {
+  .mrow.ming { grid-template-columns: 1fr 1fr 44px; grid-template-areas: "nm nm x" "us ct ct"; }
+}
+.ing-card.ing-sem { border-style: dashed; }
+.ing-linha { display: grid; grid-template-columns: minmax(0, 1.5fr) 150px 170px; gap: 0 10px; }
+.ing-linha .campo { margin-bottom: 8px; }
+@media (max-width: 600px) { .ing-linha { grid-template-columns: 1fr 1fr; } .ing-nome { grid-column: 1 / -1; } }
+.ing-info { display: block; color: var(--texto-2); font-size: 0.85rem; }
+.ing-hist { margin-top: 8px; }
+.ing-hist summary, .prompt-ia summary { cursor: pointer; font-weight: 800; color: var(--primaria); min-height: 32px; display: flex; align-items: center; }
+.prompt-ia { margin-top: 8px; }
+.prompt-ia pre { white-space: pre-wrap; font-family: inherit; font-size: 0.85rem; background: var(--superficie-2); border-radius: var(--raio-peq); padding: 10px 12px; }
+.nota-texto { min-height: 180px; font-family: ui-monospace, monospace; font-size: 0.85rem; margin-top: 8px; }
+.nota-resumo { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: flex-end; }
+.nota-linha .nl-topo { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.nota-linha .nl-orig { display: block; color: var(--texto-2); margin: 2px 0 8px; }
+.nota-linha .campo { margin-bottom: 8px; }
+.nota-linha.pendente { border: 2px solid var(--aviso); }
+.nota-linha.ignorada { opacity: 0.6; }
+.nl-res { font-size: 0.92rem; }
+.input.conferir { border-color: var(--aviso); box-shadow: 0 0 0 3px var(--aviso-fundo); }
+.nota-acoes { position: sticky; bottom: calc(70px + var(--seguro-baixo)); display: flex; gap: 10px; background: var(--fundo); padding: 10px 0; z-index: 5; }
+.nota-acoes .btn { flex: 1; }
+@media (min-width: 900px) { .nota-acoes { bottom: 0; } }
+tr.lucro-baixo td { background: var(--erro-fundo); }

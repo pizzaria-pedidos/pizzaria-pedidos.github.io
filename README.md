@@ -63,6 +63,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **Ajuste final de 12/11/2026:**
   - Card simplificado: cronômetro com segundos → **✅ Pedido pronto** (para o cronômetro) → **📲 Informar cliente** (abre o WhatsApp com a mensagem e conclui).
   - Versão dos arquivos `?v=15`.
+- **Novidade de 18/11/2026:** lista única de **🧾 Ingredientes**, atualização de preços pela **📥 Nota fiscal**, histórico de preços e alerta de lucro mínimo. Versão dos arquivos `?v=17`.
 - **Correção de 12/11/2026 (emojis):** os links do WhatsApp usam **`api.whatsapp.com/send`** (função `linkWhats` em `js/utils.js`) em vez de `wa.me`. O redirecionamento do `wa.me` trocava emojis por "?" ou "�"; texto e negrito não mudam. Versão dos arquivos `?v=16`.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
@@ -216,6 +217,26 @@ Massa e base são copiadas. Sabores, bordas e bebidas são copiados **pelo nome*
 
 > O PIN protege contra olhares de quem usa o painel aberto, por exemplo um funcionário. Os custos e o lucro **nunca** chegam ao site do cliente: as regras do Firestore só deixam o admin ler `custos` e `custosPedidos`.
 
+## 📥 Atualizar preços pela nota fiscal (área de custos)
+
+1. **No app do Claude**, mande a foto do cupom junto com o pedido. Ele fica em **🔒 Custos → 📥 Nota fiscal → 📋 Copiar pedido para a IA**. A IA devolve uma linha por item, assim:
+   `* Queijo mussarela Morro Alto: 4,154 kg × 36,99 = 153,66`
+2. **No painel**, vá em **🔒 Custos → 📥 Nota fiscal**, cole o resumo e toque em **Ler nota**.
+3. **Confira** cada linha: qual ingrediente ela é, quanto foi comprado e o total. O sistema:
+   - **sugere sozinho** o ingrediente, mesmo com marca diferente: Calabresa Aurora ou Perdigão → **Calabresa**; "muçarela" → **Mussarela**; requeijão → **Catupiry**;
+   - **calcula o preço por kg, litro ou unidade**: barra de 4,154 kg; requeijão de 1,5 kg; fermento de 500 g; pacote com 25 embalagens; fardo com 12 refrigerantes;
+   - **lembra** o que você escolheu, inclusive o que é para "Ignorar", e na próxima nota já vem marcado ✓.
+4. Toque em **✅ Aplicar preços**. Aparece o que mudou: o preço de cada ingrediente (antes, agora e %) e o **custo e o lucro de cada pizza**.
+
+**🧾 Ingredientes** (em Fichas) é a **lista única**: cada ingrediente aparece uma vez, com o preço por kg, L ou un, a última compra, a variação e o **📈 histórico de preços**. As fichas (massa, base, sabores, bordas) só dizem **qual** ingrediente e **quanto vai**. Mudou o preço, **todas as pizzas se recalculam**. As fichas antigas foram convertidas sozinhas, juntando os ingredientes de mesmo nome, e os custos continuaram iguais.
+
+**⚠️ Lucro mínimo:** em **💲 Lucro**, defina "me avise quando o lucro de uma pizza ficar abaixo de R$ X". As pizzas abaixo ficam em vermelho, e o aviso também aparece depois de aplicar uma nota.
+
+Técnico: o leitor da nota e as sugestões ficam em `js/notas.js` (funções puras). Os dados ficam em `custos/fichas`:
+- `ingredientes` (id → { nome, base, preco, emb, hist, at });
+- `apelidos` (assinatura da descrição → destino);
+- `lucroMinimo`.
+
 ## 📱 Se não abrir no celular
 
 1. **Confira o endereço.** Tem que ser `pizzaria-pedidos.github.io`. O navegador pode sugerir o endereço antigo pelo histórico.
@@ -248,5 +269,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=16` → `?v=17` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=17` → `?v=18` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.
