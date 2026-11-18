@@ -775,3 +775,8 @@ table.res tr:last-child td { border-bottom: 0; }
 .nota-acoes .btn { flex: 1; }
 @media (min-width: 900px) { .nota-acoes { bottom: 0; } }
 tr.lucro-baixo td { background: var(--erro-fundo); }
+
+/* Nota fiscal: unidade da quantidade (ml/L, g/kg) e apagar preço do histórico */
+.inl .qtd-un { width: 74px; flex: none; padding: 8px 4px !important; }
+.hist-x { width: 30px; height: 30px; border-radius: 8px; color: var(--erro); font-weight: 900; }
+.hist-x:hover { background: var(--erro-fundo); }

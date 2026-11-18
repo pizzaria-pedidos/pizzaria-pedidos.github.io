@@ -9,9 +9,9 @@
 // =====================================================================
 import {
   db, doc, setDoc, onSnapshot, collection, query, where, writeBatch, Timestamp, serverTimestamp,
-} from './firebase-config.js?v=17';
-import * as U from './utils.js?v=17';
-import * as N from './notas.js?v=17';
+} from './firebase-config.js?v=18';
+import * as U from './utils.js?v=18';
+import * as N from './notas.js?v=18';
 
 const { esc, fmtBRL: brl } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -87,7 +87,9 @@ function migrar(c) {
         c.ingredientes[id] = { id, nome, base, preco: r4(preco), emb: r4(emb), hist: preco > 0 ? [{ d: hojeISO(), p: r4(preco), desc: 'fichas anteriores' }] : [], at: '' };
         porNome[chave] = id;
       } else if (!(num(c.ingredientes[id].preco) > 0) && preco > 0) {
-        Object.assign(c.ingredientes[id], { preco: r4(preco), emb: r4(emb) });
+        const ingx = c.ingredientes[id];
+        Object.assign(ingx, { preco: r4(preco), emb: r4(emb) });
+        if (!(ingx.hist || []).length) ingx.hist = [{ d: hojeISO(), p: r4(preco), desc: 'fichas anteriores' }];
       }
       L[k] = { id: it.id || uid(), ing: id, usa: it.usa ?? '' };
     }
@@ -639,8 +641,9 @@ function viewIngredientes() {
       </div>
       <small class="ing-info">${ing.at ? `Última compra: <b>${fmtD(ing.at)}</b>` : 'Sem compra registrada'}${v ? ` · <b class="${v.startsWith('🔺') ? 'neg' : 'okc'}">${v}</b>` : ''} · ${usos.length ? `usado em: ${esc(usos.join(', '))}` : '<i>não usado em nenhuma ficha</i>'}</small>
       ${hist.length ? `<details class="ing-hist"><summary>📈 Histórico de preços (${hist.length})</summary>
-        <div class="tbl"><table class="res"><tr><th>Data</th><th>Preço</th><th>Produto</th></tr>
-        ${hist.map((x) => `<tr><td>${fmtD(x.d)}</td><td>${brl(x.p)}/${ing.base}</td><td>${esc(x.desc || '')}</td></tr>`).join('')}</table></div></details>` : ''}
+        <div class="tbl"><table class="res"><tr><th>Data</th><th>Preço</th><th>Produto</th><th></th></tr>
+        ${hist.map((x, k) => `<tr><td>${fmtD(x.d)}</td><td>${brl(x.p)}/${ing.base}</td><td>${esc(x.desc || '')}</td><td><button type="button" class="hist-x" data-cu="histDel" data-id="${esc(ing.id)}" data-k="${hist.length - 1 - k}" title="Apagar este preço (lançado errado)" aria-label="Apagar este preço">✕</button></td></tr>`).join('')}</table></div>
+        <small class="cu-dica">Lançou errado? Toque no ✕. Se for o último preço, o ingrediente volta para o preço anterior.</small></details>` : ''}
       ${usos.length ? '' : `<button type="button" class="link link-perigo" data-cu="ingDel" data-id="${esc(ing.id)}">Excluir ingrediente</button>`}
     </div>`;
   }).join('') : `<div class="cartao">${p('Nenhum ingrediente ainda. Toque em “+ Novo ingrediente” ou atualize pela 📥 Nota fiscal.')}</div>`}`;
@@ -687,7 +690,15 @@ function calcQtdLinha(o) {
     o.certo = !!porPacote || o.uq !== 'un';
   }
   o.q = r4(o.q);
+  // digita na unidade da nota: 900 ml (não 0,9 L), 500 g (não 0,5 kg)
+  const b = unDestino(o);
+  const pequena = o.uq === 'g' || o.uq === 'ml' || o.tam?.u === 'g' || o.tam?.u === 'ml';
+  o.qUn = b === 'kg' ? (pequena ? 'g' : 'kg') : b === 'L' ? (pequena ? 'ml' : 'L') : 'un';
 }
+const FATOR_UN = { kg: 1, g: 0.001, L: 1, ml: 0.001, un: 1 };
+const UNIDADES_QTD = { kg: ['kg', 'g'], L: ['L', 'ml'], un: ['un'] };
+/** quantidade na unidade escolhida (ex.: 0,9 L → 900 ml) */
+const qtdMostrada = (o) => r4(num(o.q) / (FATOR_UN[o.qUn] || 1));
 function precoAntes(o) {
   if (o.destino.startsWith('ing:')) return num(CU.ingredientes[o.destino.slice(4)]?.preco);
   if (o.destino.startsWith('simples:')) return simplesCustoUn(o.destino.slice(8));
@@ -702,7 +713,10 @@ function resLinha(o) {
     const pct = ((pu - ant) / ant) * 100;
     comp = ` · antes ${brl(ant)} ${Math.abs(pct) < 0.5 ? '(igual)' : `<b class="${pct > 0 ? 'neg' : 'okc'}">${pct > 0 ? '🔺 +' : '🔻 '}${pct.toFixed(1).replace('.', ',')}%</b>`}`;
   }
-  return `= <b>${brl(pu)}/${unDestino(o)}</b>${comp}${o.certo ? '' : ' <span class="warnc">· confira a quantidade</span>'}`;
+  // variação muito grande costuma ser quantidade na unidade errada (900 "L" em vez de 900 ml)
+  const estranho = ant > 0 && (pu < ant * 0.3 || pu > ant * 3);
+  const conta = o.qUn && o.qUn !== unDestino(o) ? ` <small>(${brl(o.total)} por ${fmtNum(qtdMostrada(o))} ${o.qUn})</small>` : '';
+  return `= <b>${brl(pu)}/${unDestino(o)}</b>${conta}${comp}${o.certo ? '' : ' <span class="warnc">· confira a quantidade</span>'}${estranho ? '<br><b class="neg">⚠️ Variação muito grande — confira a quantidade e a unidade (ml/L, g/kg).</b>' : ''}`;
 }
 function lerNotaColada() {
   const texto = $('#cu-nota-texto')?.value || '';
@@ -744,7 +758,10 @@ function linhaNotaHTML(o, i) {
       <label class="campo"><span>Nome do novo ingrediente</span><input class="input" data-nl="${i}" data-campo="novoNome" value="${esc(o.novoNome)}" maxlength="40"></label>
       <label class="campo"><span>Unidade</span><select class="input" data-nl="${i}" data-campo="novoBase">${Object.entries(BASES).map(([k, t]) => `<option value="${k}" ${o.novoBase === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div>` : ''}
     ${ativo ? `<div class="linha-campos">
-      <label class="campo"><span>Quantidade comprada (${unDestino(o)})</span><input class="input${o.certo ? '' : ' conferir'}" inputmode="decimal" data-nl="${i}" data-campo="q" value="${o.q > 0 ? String(o.q).replace('.', ',') : ''}" placeholder="${o.destino.startsWith('simples:') || unDestino(o) === 'un' ? 'Ex.: 25' : 'Ex.: 2'}"></label>
+      <label class="campo"><span>Quantidade comprada</span><div class="inl">
+        <input class="input${o.certo ? '' : ' conferir'}" inputmode="decimal" data-nl="${i}" data-campo="q" value="${o.q > 0 ? String(qtdMostrada(o)).replace('.', ',') : ''}" placeholder="${o.qUn === 'un' ? 'Ex.: 25' : o.qUn === 'ml' ? 'Ex.: 900' : 'Ex.: 2'}">
+        ${(UNIDADES_QTD[unDestino(o)] || ['un']).length > 1 ? `<select class="input qtd-un" data-nl="${i}" data-campo="qUn" aria-label="Unidade da quantidade">${UNIDADES_QTD[unDestino(o)].map((u) => `<option value="${u}" ${o.qUn === u ? 'selected' : ''}>${u}</option>`).join('')}</select>` : `<span class="u">${o.qUn || 'un'}</span>`}
+      </div></label>
       <label class="campo"><span>Total pago (R$)</span><input class="input" inputmode="decimal" data-nl="${i}" data-campo="total" value="${String(o.total).replace('.', ',')}"></label></div>
       <div class="nl-res" id="nlres-${i}">${resLinha(o)}</div>` : ''}
   </div>`;
@@ -794,7 +811,16 @@ function notaMudou(el, mudouSelect) {
     o.novoBase = el.value;
     calcQtdLinha(o);
   } else if (campo === 'novoNome') { o.novoNome = el.value; return; }
-  else if (campo === 'q') { o.q = num(el.value); o.certo = true; el.classList.remove('conferir'); }
+  else if (campo === 'q') { o.q = r4(num(el.value) * (FATOR_UN[o.qUn] || 1)); o.certo = true; el.classList.remove('conferir'); }
+  else if (campo === 'qUn') {
+    if (!mudouSelect) return;
+    // mantém o número digitado e muda só a unidade (digitou 900 e escolheu ml → 900 ml)
+    const campoQ = document.querySelector(`[data-nl="${i}"][data-campo="q"]`);
+    o.qUn = el.value;
+    o.q = r4(num(campoQ?.value) * (FATOR_UN[o.qUn] || 1));
+    const r = document.getElementById(`nlres-${i}`); if (r) r.innerHTML = resLinha(o);
+    return;
+  }
   else if (campo === 'total') { o.total = num(el.value); }
   if (campo === 'q' || campo === 'total') { const r = document.getElementById(`nlres-${i}`); if (r) r.innerHTML = resLinha(o); return; }
   const card = document.getElementById(`nl-${i}`);
@@ -1102,6 +1128,23 @@ document.addEventListener('click', (e) => {
     return;
   }
   if (a === 'ingNovo') { formNovoIngrediente(); return; }
+  if (a === 'histDel') {
+    const ing = CU.ingredientes[t.dataset.id];
+    const k = +t.dataset.k;
+    const h = ing?.hist || [];
+    const x = h[k];
+    if (!x || !confirm(`Apagar o preço ${brl(x.p)}/${ing.base} de ${fmtD(x.d)}?`)) return;
+    const eraUltimo = k === h.length - 1;
+    h.splice(k, 1);
+    ing.hist = h;
+    if (eraUltimo) {
+      const ant = h[h.length - 1];
+      if (ant) { ing.preco = ant.p; ing.at = ant.d; }
+      U.toast(ant ? `${ing.nome} voltou para ${brl(ant.p)}/${ing.base}` : 'Era o único preço registrado — corrija o valor no campo Preço');
+    }
+    salvarAgora(); render();
+    return;
+  }
   if (a === 'ingDel') {
     const ing = CU.ingredientes[t.dataset.id];
     if (!ing || !confirm(`Excluir o ingrediente “${ing.nome}”?`)) return;
