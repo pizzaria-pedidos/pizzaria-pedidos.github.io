@@ -63,6 +63,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **Ajuste final de 12/11/2026:**
   - Card simplificado: cronômetro com segundos → **✅ Pedido pronto** (para o cronômetro) → **📲 Informar cliente** (abre o WhatsApp com a mensagem e conclui).
   - Versão dos arquivos `?v=15`.
+- **Bebidas por marca (18/11/2026):** cadastre no Cardápio uma bebida para cada marca (ex.: "Pepsi 1L", "Antártica 1L", "Coca-Cola 1L"). Na nota, cada marca vai para a sua bebida, com o seu custo. Grafias diferentes são entendidas: Antarctica = Antártica, Coca-Cola = Coca Cola = Cocacola. O tamanho também precisa bater (1L ≠ 2L). Versão dos arquivos `?v=19`.
 - **Ajuste de 18/11/2026:**
   - Na conferência da nota, a quantidade é digitada **na unidade da nota**, com seletor **ml/L** e **g/kg** (ex.: óleo "900 ml", e não 0,9 L).
   - Aviso quando um preço varia demais.
@@ -274,5 +275,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=18` → `?v=19` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=19` → `?v=20` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

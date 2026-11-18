@@ -9,7 +9,7 @@
 //    CALABRESA FATIADA;2,094;kg;24,99;52,33        (produto;qtd;unidade;preço;total)
 //  Linhas de título, subtotal e total são ignoradas sozinhas.
 // =====================================================================
-import { norm } from './utils.js?v=18';
+import { norm } from './utils.js?v=19';
 
 /** "4,154" → 4.154 · "1.234,56" → 1234.56 · "36.99" → 36.99 */
 export function numBR(v) {
@@ -130,10 +130,12 @@ const SINONIMOS = {
 };
 // palavras que podem vir ANTES do nome do ingrediente na nota
 const PREFIXOS = new Set(['queijo', 'file', 'peito', 'carne', 'linguica', 'farinha', 'massa', 'oleo', 'acucar']);
+// grafias diferentes da mesma marca (a nota escreve de um jeito, o cardápio de outro)
+const GRAFIAS = { antarctica: 'antartica', antartic: 'antartica', cocacola: 'coca cola', coke: 'coca cola', guarana: 'guarana' };
 /** palavras (sem acento, sem tamanho/número), com sinônimos acrescentados */
 function palavras(txt, comSinonimos = true) {
   const ws = norm(txt).replace(/(\d+(?:[.,]\d+)?)\s*(kg|g|gr|l|lt|ml)\b/g, ' ').replace(/[^a-z0-9]+/g, ' ')
-    .split(' ').filter((w) => w && !/^\d+$/.test(w) && !PARADAS.has(w));
+    .split(' ').flatMap((w) => (GRAFIAS[w] || w).split(' ')).filter((w) => w && !/^\d+$/.test(w) && !PARADAS.has(w));
   if (!comSinonimos) return ws;
   return [...ws, ...ws.map((w) => SINONIMOS[w]).filter(Boolean)];
 }
