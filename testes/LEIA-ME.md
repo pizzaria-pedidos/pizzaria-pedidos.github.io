@@ -24,7 +24,7 @@ export PLAYWRIGHT=/caminho/para/node_modules/playwright
 
 ## Rodar
 ```bash
-bash testes/rodar.sh original custos v4-novas grupos apagar fotos tempo som pronto nota
+bash testes/rodar.sh original custos v4-novas grupos apagar fotos tempo som pronto nota ovo
 ```
 
 Cada bateria roda com o banco limpo e mostra `RESULTADO: N ok, 0 falha(s)`. As falhas aparecem com ✘. Detalhes ficam em `testes/out-<bateria>.txt`, e as capturas de tela em `testes/shots-*/`.
@@ -40,6 +40,7 @@ Cada bateria roda com o banco limpo e mostra `RESULTADO: N ok, 0 falha(s)`. As f
 | tempo | tempo de espera no fim da mensagem |
 | som | 6 sons, cronômetro com cores |
 | pronto | cronômetro com segundos → Pedido pronto → Informar cliente (WhatsApp com mensagem) |
+| ovo | quantidade fixa (ovo): 1 un na inteira, ½ e ⅓, em todo tamanho; custo do pedido, gramas, lucro |
 | nota | lista única de ingredientes, nota fiscal real de 15/11/2026, ml/L, histórico, lucro mínimo, bebidas |
 
 ## Versão dos arquivos

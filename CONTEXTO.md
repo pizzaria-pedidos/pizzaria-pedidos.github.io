@@ -1,6 +1,6 @@
 # 🍕 CONTEXTO DO PROJETO: leia isto primeiro
 
-> **Para o Claude do próximo chat:** este arquivo resume tudo o que foi construído e decidido até 18/11/2026.
+> **Para o Claude do próximo chat:** este arquivo resume tudo o que foi construído e decidido até 25/11/2026.
 > Leia este arquivo inteiro. Depois leia o `README.md` (detalhes de uso) e o código antes de propor qualquer mudança.
 > O conteúdo deste repositório é **exatamente o que está no ar**.
 
@@ -56,7 +56,7 @@ CONTEXTO.md       este arquivo
 testes/           testes automáticos (emulador Firebase + Playwright). Veja testes/LEIA-ME.md
 ```
 
-⚠️ **Versão dos arquivos: hoje é `?v=19`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=20`) **em todos os lugares**. Para achar: `grep -rn "?v=" index.html admin.html js`.
+⚠️ **Versão dos arquivos: hoje é `?v=20`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=21`) **em todos os lugares**. Depois rode `python3 testes/versao.py 21` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
 
 ## 4. Dados no Firestore
 
@@ -65,7 +65,7 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
 - `categorias`, `produtos` (tipo 'pizza'|'simples', tamanho, fatias, maxSabores, fotoUrl, disponivel…), `sabores` (ingredientes = descrição, precos{tamanho}, **grupo**, fotoUrl), `bordas`, `adicionais`.
 - `pedidos/{id}`: itens[] (com cópia de nomes e preços), tipo, endereco, pagamento, troco, subtotal, taxaEntrega, total, status, criadoEm, **prontoEm, informadoEm, concluidoEm**.
 - `clientes/{tel}`: nome, **apelido**, telefone, totalPedidos, totalGasto, primeiro/ultimoPedidoEm, ultimoEndereco, ultimosPedidos[].
-- `custos/fichas` (só admin): pinHash, massa{rende,itens}, base{itens}, sabores{id:{itens}}, bordas, adicionais, simples{produtoId:{qtd,preco,hist}}, tamanhos{ref,fator}, **ingredientes**{id:{nome,base:'kg'|'L'|'un',preco,emb,hist[{d,p,desc}],at}}, **apelidos**{assinatura→destino}, **lucroMinimo**. Os itens das fichas são `{id, ing, usa}`.
+- `custos/fichas` (só admin): pinHash, massa{rende,itens}, base{itens}, sabores{id:{itens}}, bordas, adicionais, simples{produtoId:{qtd,preco,hist}}, tamanhos{ref,fator}, **ingredientes**{id:{nome,base:'kg'|'L'|'un',preco,emb,hist[{d,p,desc}],at}}, **apelidos**{assinatura→destino}, **lucroMinimo**. Os itens das fichas são `{id, ing, usa, fixo?}`. `fixo: true` (ex.: ovo) = a quantidade não divide na ½ e no ⅓ e não muda com o tamanho; só existe em sabores, base e bordas.
 - `custosPedidos/{pedidoId}` (só admin): custo, venda e linhas gravados no momento do pedido.
 - **Fotos** ficam como `data:image/jpeg;base64` dentro do próprio documento, reduzidas no navegador. Não usa Storage, porque o Storage exige o plano Blaze.
 
@@ -112,6 +112,7 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
   - **🧾 Ingredientes** é a lista única: preço por kg, L ou un, **histórico** (com ✕ para apagar um lançamento errado) e variação;
   - Massa, Base e tamanhos, Sabores, Bordas, Adicionais e Bebidas e outros.
 - **Lucro**, com **alerta de lucro mínimo**, e **Gramas** (inteira, ½ e ⅓).
+- **🥚 Quantidade fixa** (25/11/2026): caixinha em cada ingrediente das fichas de Sabores, Base e Bordas. O ovo é 1 unidade na inteira, na ½ e no ⅓, em todo tamanho. Ao escolher um ingrediente chamado "Ovo", já vem marcada. Funções em `js/custos.js`: `baseT`, `recheioT`, `bordaT` e `pizzaT`.
 
 ## 7. Decisões já tomadas (não refazer sem o Eduardo pedir)
 
@@ -152,4 +153,4 @@ Veja `testes/LEIA-ME.md`. Resumo:
 - o site é servido localmente;
 - o Playwright faz o papel do cliente e do admin.
 
-São 10 baterias e ~260 verificações. Todas passavam na versão `?v=19`. Rode-as antes e depois de qualquer mudança.
+São 11 baterias e ~280 verificações. Todas passavam na versão `?v=20`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.

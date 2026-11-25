@@ -8,7 +8,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **`admin.html`**: painel (pedidos com som, cardápio, clientes, ajustes)
 - HTML + CSS + JavaScript puro, sem build. Firebase (Firestore + Authentication). Hospedagem no GitHub Pages.
 
-## ✅ Status atual (11/11/2026): no ar
+## ✅ Status atual (25/11/2026): no ar
 
 | | |
 |---|---|
@@ -65,14 +65,19 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **Ajuste final de 12/11/2026:**
   - Card simplificado: cronômetro com segundos → **✅ Pedido pronto** (para o cronômetro) → **📲 Informar cliente** (abre o WhatsApp com a mensagem e conclui).
   - Versão dos arquivos `?v=15`.
-- **Bebidas por marca (18/11/2026):** cadastre no Cardápio uma bebida para cada marca (ex.: "Pepsi 1L", "Antártica 1L", "Coca-Cola 1L"). Na nota, cada marca vai para a sua bebida, com o seu custo. Grafias diferentes são entendidas: Antarctica = Antártica, Coca-Cola = Coca Cola = Cocacola. O tamanho também precisa bater (1L ≠ 2L). Versão dos arquivos `?v=19`.
+- **Correção de 12/11/2026 (emojis):** os links do WhatsApp usam **`api.whatsapp.com/send`** (função `linkWhats` em `js/utils.js`) em vez de `wa.me`. O redirecionamento do `wa.me` trocava emojis por "?" ou "�"; texto e negrito não mudam. Versão dos arquivos `?v=16`.
+- **Novidade de 18/11/2026:** lista única de **🧾 Ingredientes**, atualização de preços pela **📥 Nota fiscal**, histórico de preços e alerta de lucro mínimo. Versão dos arquivos `?v=17`.
 - **Ajuste de 18/11/2026:**
   - Na conferência da nota, a quantidade é digitada **na unidade da nota**, com seletor **ml/L** e **g/kg** (ex.: óleo "900 ml", e não 0,9 L).
   - Aviso quando um preço varia demais.
   - ✕ no histórico para apagar um preço lançado errado (se for o último, o preço volta ao anterior).
   - Versão dos arquivos `?v=18`.
-- **Novidade de 18/11/2026:** lista única de **🧾 Ingredientes**, atualização de preços pela **📥 Nota fiscal**, histórico de preços e alerta de lucro mínimo. Versão dos arquivos `?v=17`.
-- **Correção de 12/11/2026 (emojis):** os links do WhatsApp usam **`api.whatsapp.com/send`** (função `linkWhats` em `js/utils.js`) em vez de `wa.me`. O redirecionamento do `wa.me` trocava emojis por "?" ou "�"; texto e negrito não mudam. Versão dos arquivos `?v=16`.
+- **Bebidas por marca (18/11/2026):** cadastre no Cardápio uma bebida para cada marca (ex.: "Pepsi 1L", "Antártica 1L", "Coca-Cola 1L"). Na nota, cada marca vai para a sua bebida, com o seu custo. Grafias diferentes são entendidas: Antarctica = Antártica, Coca-Cola = Coca Cola = Cocacola. O tamanho também precisa bater (1L ≠ 2L). Versão dos arquivos `?v=19`.
+- **Novidade de 25/11/2026: ingrediente de quantidade fixa (ex.: ovo).**
+  - Nas fichas de Sabores, Base e Bordas, cada ingrediente tem a caixinha **🥚 Quantidade fixa**. Marcada, ele vai **igual na inteira, na ½ e no ⅓** e **em todo tamanho** (1 ovo é sempre 1 ovo).
+  - Ao escolher um ingrediente chamado "Ovo", a caixinha já vem marcada.
+  - Vale no custo de cada pedido (Balanço), no Lucro, nas Gramas e no impacto da nota fiscal.
+  - Versão dos arquivos `?v=20`.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
 ```
@@ -83,6 +88,8 @@ js/utils.js             ← funções compartilhadas (preço, horário, formata�
 js/cliente.js           ← lógica da página do cliente
 js/admin.js             ← lógica do painel
 js/custos.js            ← área de custos (cadeado 🔒 no painel)
+js/notas.js             ← leitor do resumo da nota fiscal (funções puras)
+testes/                 ← testes automáticos (veja testes/LEIA-ME.md)
 ```
 
 ---
@@ -189,9 +196,9 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
   3. **📲 Informar cliente** é um link do WhatsApp do cliente **já com a mensagem**. Ele marca o pedido como **Concluído** e grava a hora ("📲 cliente avisado às 21:30").
   4. Depois, se precisar, **📲 Avisar de novo**.
   - Mudar status ou cancelar ficam em **"⋯ Mais opções"**, junto com "Conversar no WhatsApp (sem mensagem)".
-- **✅ Pedido pronto (detalhes da mensagem):** no card do pedido (status Novo ou Em preparo), o botão **✅ Pedido pronto** abre o **WhatsApp do cliente** com o aviso já escrito. O status muda sozinho para **Saiu para entrega** (entrega) ou **Pronto p/ retirada** (retirada). As duas mensagens ficam em **Ajustes → 📲 Aviso de pedido pronto** e aceitam **{nome}** (apelido ou primeiro nome), **{codigo}** e **{total}**. Se o campo ficar em branco, vale a mensagem padrão.
+- **Mensagem de pedido pronto:** o botão **✅ Pedido pronto** para o cronômetro e muda o status para **Saiu para entrega** (entrega) ou **Pronto p/ retirada** (retirada). Depois, o botão **📲 Informar cliente** abre o **WhatsApp do cliente** com o aviso já escrito e conclui o pedido. As duas mensagens ficam em **Ajustes → 📲 Aviso de pedido pronto** e aceitam **{nome}** (apelido ou primeiro nome), **{codigo}** e **{total}**. Se o campo ficar em branco, vale a mensagem padrão.
 - **Tempo que cada pedido levou (fica salvo):** ao marcar o pedido como pronto (✅ Pedido pronto, Saiu para entrega ou Pronto p/ retirada), o painel grava a hora em `prontoEm`. Ao marcar como Concluído, grava em `concluidoEm`. O card mostra "✅ ficou pronto em 32 min · 🏁 concluído em 45 min", contando desde a hora do pedido, e isso também aparece no histórico do cliente. No topo da tela de Pedidos, **⏱️ Preparo médio** mostra a média do dia.
-- **Há quanto tempo o cliente pediu:** cada pedido em andamento mostra **"⏱️ há 12 min"** desde a hora do pedido, atualizando sozinho. A etiqueta é verde no começo, fica **laranja** perto do limite (80% do tempo de espera configurado) e **vermelha piscando, com "atrasado"**, quando passa do limite (ex.: mais de 60 min em "40 a 60 minutos"). O contador some quando o pedido é concluído ou cancelado.
+- **Há quanto tempo o cliente pediu:** cada pedido em andamento mostra o **cronômetro "⏱️ 12:34"** (minutos e segundos) desde a hora do pedido, atualizando sozinho. A etiqueta é verde no começo, fica **laranja** perto do limite (80% do tempo de espera configurado) e **vermelha piscando, com "atrasado"**, quando passa do limite (ex.: mais de 60 min em "40 a 60 minutos"). O contador some quando o pedido é concluído ou cancelado.
 - **Som de pedido novo:** o botão **🔔** na tela de Pedidos abre a escolha entre 6 sons: Plim-plim (padrão), Campainha, Sino, Alarme, Bipes rápidos e Melodia, cada um com **▶ Ouvir**. Ali também liga e desliga o som. A escolha vale **para cada aparelho**.
 - **Tempo de espera:** em **Ajustes → Entrega e pagamento**, preencha os campos **Entrega** e **Retirada** (ex.: "40 a 60 minutos"). Para mudar rápido, use o botão **⏱️** no topo da tela de Pedidos, que tem atalhos de 30 a 45 min, 40 a 60 min, 1 hora e 1h30. O tempo vai no **fim da mensagem do WhatsApp** ("⏱️ *Tempo de espera estimado:* …"), conforme o cliente escolheu entrega ou retirada, e aparece no resumo do carrinho e em "Mais informações". Em branco, não aparece.
 - **Hoje sem entrega:** toque em **🛵 Entrega ligada · Desligar**, no topo de Pedidos ou em Ajustes. O cliente vê "🏃 Hoje só retirada no local", a opção Entrega fica bloqueada e o pedido vai como retirada, sem taxa. Toque de novo para religar. Vale até você religar.
@@ -214,6 +221,8 @@ Toque no cadeado discreto no topo do painel. Na primeira vez, você cria um **PI
   - Bebidas e outros: unidades no fardo e quanto pagou nele.
 - **Lucro:** custo, venda e lucro de cada sabor, em cada tamanho, e também das bordas, adicionais e bebidas.
 - **Gramas:** quanto vai de cada ingrediente na pizza inteira, na metade (½) e no terço (⅓), por tamanho.
+
+**🥚 Quantidade fixa (ex.: ovo):** em Fichas → Sabores (e também na Base e nas Bordas), marque a caixinha **Quantidade fixa** no ingrediente que vai sempre na mesma quantidade. Exemplo: o ovo da Calabresa é **1 unidade na inteira, 1 na meia (½) e 1 no terço (⅓)**, e também 1 na Média. Sem marcar, o sistema divide o ingrediente na meia e no terço e diminui nos tamanhos menores, como acontece com o queijo. Quando você escolhe um ingrediente chamado "Ovo", a caixinha já vem marcada. Numa pizza meia Calabresa e meia Portuguesa, com ovo nas duas, entram 2 ovos (1 em cada metade).
 
 **Tamanhos:** as fichas valem para a pizza de **referência** (hoje, a Grande, que é a única ligada). Tamanhos **desligados** no cardápio não aparecem na área de custos. Se um dia ligar outro tamanho, ele aparece sozinho em *Fichas → Base e tamanhos*, onde você diz quanto ele usa da Grande (ex.: "a Média usa 70%"). Nas pizzas de 2 ou 3 sabores, o recheio é dividido e a base entra inteira.
 
@@ -272,10 +281,10 @@ Para a v1 isso é aceitável. Numa próxima versão dá para adicionar verifica�
 
 ## Fora da v1 (o código já está organizado para receber)
 
-Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão de comanda, verificação por SMS e upload de fotos para o Storage (hoje a foto é uma URL).
+Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão de comanda, verificação por SMS e upload de fotos para o Storage (hoje a foto vem da galeria, reduzida e guardada dentro do próprio documento, sem Storage).
 
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=19` → `?v=20` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=20` → `?v=21` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.
