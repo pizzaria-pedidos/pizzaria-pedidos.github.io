@@ -56,7 +56,7 @@ CONTEXTO.md       este arquivo
 testes/           testes automáticos (emulador Firebase + Playwright). Veja testes/LEIA-ME.md
 ```
 
-⚠️ **Versão dos arquivos: hoje é `?v=20`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=21`) **em todos os lugares**. Depois rode `python3 testes/versao.py 21` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
+⚠️ **Versão dos arquivos: hoje é `?v=21`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=22`) **em todos os lugares**. Depois rode `python3 testes/versao.py 22` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
 
 ## 4. Dados no Firestore
 
@@ -81,6 +81,7 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
 **Cliente:**
 - Entrada: WhatsApp + nome + **apelido opcional**. Nas próximas vezes entra direto, ou pelo link `?tel=`.
 - Seção **"Nossos sabores"** com a descrição de cada sabor, separada por grupo.
+- **Bebida dentro da tela da pizza** (25/11/2026): depois de Borda e Adicionais, a seção 🥤 Bebida lista os produtos simples das categorias com "bebida" no nome (função `bebidasParaPizza` em `js/cliente.js`). Cada bebida vira uma linha simples no carrinho. Botões **Adicionar** e **Adicionar e finalizar ➜** (`#mp-fin`), que abre o carrinho direto. A quantidade de pizzas não multiplica as bebidas.
 - Carrinho; entrega ou retirada (a entrega pode estar desligada no dia); Pix, Cartão ou Dinheiro com troco.
 - Mensagem do WhatsApp:
   - começa com "🍕 *Código do seu pedido: K7Q2M9*" (6 caracteres, sem 0/O/1/I/L);
@@ -153,4 +154,4 @@ Veja `testes/LEIA-ME.md`. Resumo:
 - o site é servido localmente;
 - o Playwright faz o papel do cliente e do admin.
 
-São 11 baterias e ~280 verificações. Todas passavam na versão `?v=20`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.
+São 12 baterias e ~295 verificações. Todas passavam na versão `?v=21`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.

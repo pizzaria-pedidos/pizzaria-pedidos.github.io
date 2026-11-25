@@ -8,7 +8,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **`admin.html`**: painel (pedidos com som, cardápio, clientes, ajustes)
 - HTML + CSS + JavaScript puro, sem build. Firebase (Firestore + Authentication). Hospedagem no GitHub Pages.
 
-## ✅ Status atual (25/11/2026): no ar
+## ✅ Status atual (25/11/2026, 2): no ar
 
 | | |
 |---|---|
@@ -78,6 +78,10 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
   - Ao escolher um ingrediente chamado "Ovo", a caixinha já vem marcada.
   - Vale no custo de cada pedido (Balanço), no Lucro, nas Gramas e no impacto da nota fiscal.
   - Versão dos arquivos `?v=20`.
+- **Novidade de 25/11/2026 (2): bebida na mesma tela da pizza.**
+  - Depois de Borda e Adicionais, a tela da pizza mostra **🥤 Bebida** com as bebidas da categoria **Bebidas** do cardápio, cada uma com − e +.
+  - O botão já soma pizza + bebidas. Novo botão **Adicionar e finalizar ➜**, que coloca tudo no carrinho e abre direto a tela de finalizar.
+  - Versão dos arquivos `?v=21`.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
 ```
@@ -203,6 +207,14 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
 - **Tempo de espera:** em **Ajustes → Entrega e pagamento**, preencha os campos **Entrega** e **Retirada** (ex.: "40 a 60 minutos"). Para mudar rápido, use o botão **⏱️** no topo da tela de Pedidos, que tem atalhos de 30 a 45 min, 40 a 60 min, 1 hora e 1h30. O tempo vai no **fim da mensagem do WhatsApp** ("⏱️ *Tempo de espera estimado:* …"), conforme o cliente escolheu entrega ou retirada, e aparece no resumo do carrinho e em "Mais informações". Em branco, não aparece.
 - **Hoje sem entrega:** toque em **🛵 Entrega ligada · Desligar**, no topo de Pedidos ou em Ajustes. O cliente vê "🏃 Hoje só retirada no local", a opção Entrega fica bloqueada e o pedido vai como retirada, sem taxa. Toque de novo para religar. Vale até você religar.
 - **Apelido do cliente:** na entrada, além do WhatsApp e do nome, o cliente pode informar um **apelido (opcional)**. O site cumprimenta pelo apelido ("Olá, Joãozinho!"), a mensagem do WhatsApp mostra "João Silva (Joãozinho)" e o painel mostra o apelido nos pedidos e em Clientes. A busca também procura pelo apelido.
+- **Bebida junto com a pizza:** na tela de montar a pizza, depois de Borda e Adicionais, aparece **🥤 Bebida** com as bebidas da categoria **Bebidas** do Cardápio (outras categorias, como Adicionais, não aparecem). O cliente escolhe a quantidade com − e +, e o valor já entra no botão.
+  - **Adicionar** coloca a pizza e as bebidas no carrinho e volta ao cardápio, para quem quer pedir outra coisa.
+  - **Adicionar e finalizar ➜** coloca tudo no carrinho e já abre a tela de finalizar.
+  - No carrinho, no WhatsApp e no painel, cada bebida aparece numa linha separada, como antes ("2x Refrigerante 2L"). A mesma bebida pedida duas vezes é somada numa linha só.
+  - A quantidade de pizzas (− 1 +) não multiplica as bebidas.
+  - Bebida desligada no Cardápio aparece como "Esgotado", sem o botão +. Com "Esconder itens indisponíveis" marcado, ela some.
+  - Para uma bebida aparecer ali, ela precisa estar na categoria **Bebidas** e ter preço. Se você renomear a categoria, mantenha a palavra "Bebida" no nome.
+  - A categoria Bebidas continua no cardápio, para quem quer só bebida.
 - **Esconder o que está desligado:** por padrão, produto ou sabor desligado aparece **acinzentado** para o cliente. Para ele **sumir**, marque **Ajustes → Cardápio → "Esconder itens indisponíveis"** e salve. Isso vale para tudo: produtos (ex.: a Pizza Média) e sabores esgotados.
 - **Fechar a loja agora:** use o botão no topo da tela de Pedidos. Ele vale até você reabrir. Fora desse botão, a loja abre e fecha sozinha pelo horário configurado, inclusive em horários que passam da meia-noite (ex.: 18:00 → 01:00).
 - **Preço de pizza com vários sabores:** por padrão vale o **sabor mais caro**. Dá para trocar para **média dos sabores** em Ajustes → Cardápio.
@@ -286,5 +298,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=20` → `?v=21` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=21` → `?v=22` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

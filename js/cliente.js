@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=20';
-import * as U from './utils.js?v=20';
+} from './firebase-config.js?v=21';
+import * as U from './utils.js?v=21';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -78,6 +78,14 @@ function precoAPartir(p) {
   return precos.length ? Math.min(...precos) : p.preco || 0;
 }
 const bordasDisp = () => S.bordas.filter((b) => b.disponivel !== false);
+/** Bebidas oferecidas dentro da tela da pizza: produtos simples da(s) categoria(s) "Bebidas" */
+function bebidasParaPizza() {
+  const cats = S.categorias.filter((c) => c.ativo !== false && /bebida/i.test(c.nome || '')).map((c) => c.id);
+  return S.produtos
+    .filter((x) => x.tipo !== 'pizza' && cats.includes(x.categoriaId) && x.preco > 0)
+    .filter((x) => !S.loja.ocultarIndisponiveis || disponivel(x))
+    .sort((a, b) => (cats.indexOf(a.categoriaId) - cats.indexOf(b.categoriaId)) || ((a.ordem ?? 0) - (b.ordem ?? 0)) || a.nome.localeCompare(b.nome, 'pt-BR'));
+}
 const adicDisp = () => S.adicionais.filter((a) => a.disponivel !== false);
 function emojiProduto(p) {
   if (p.tipo === 'pizza') return '🍕';
@@ -530,8 +538,9 @@ function abrirProduto(id, saborInicial = '') {
   const bordas = pizza && p.usaBordas !== false ? bordasDisp() : [];
   const adics = pizza && p.usaAdicionais !== false ? adicDisp() : [];
   const semBordaReal = bordas.find((b) => !b.preco);
+  const bebidas = pizza ? bebidasParaPizza() : [];
   S.m = {
-    p, pizza, sabores: [], adic: {}, qtd: 1, obs: '', buscaSabor: '',
+    p, pizza, sabores: [], adic: {}, bebidas, beb: {}, qtd: 1, obs: '', buscaSabor: '',
     bordas: semBordaReal || !bordas.length ? bordas : [{ id: '', nome: 'Sem borda', preco: 0 }, ...bordas],
     bordaId: semBordaReal ? semBordaReal.id : '',
     adics,
@@ -569,9 +578,13 @@ function abrirProduto(id, saborInicial = '') {
         ${adics.length ? `<section class="grupo">
           <div class="grupo-topo"><div><h3>Adicionais</h3><p>Opcional</p></div></div>
           <div class="lista-opcoes" id="mp-adicionais"></div>
+        </section>` : ''}
+        ${bebidas.length ? `<section class="grupo">
+          <div class="grupo-topo"><div><h3>🥤 Bebida</h3><p>Opcional · já vai junto no pedido</p></div></div>
+          <div class="lista-opcoes" id="mp-bebidas"></div>
         </section>` : ''}` : ''}
       <section class="grupo">
-        <div class="grupo-topo"><div><h3>Observação</h3><p>Opcional</p></div></div>
+        <div class="grupo-topo"><div><h3>${pizza ? 'Observação da pizza' : 'Observação'}</h3><p>Opcional</p></div></div>
         <div class="mp-obs"><textarea id="mp-obs" maxlength="140" placeholder="${pizza ? 'Ex.: sem cebola, bem assada…' : 'Ex.: bem gelado'}" aria-label="Observação"></textarea></div>
       </section>
     </div>
@@ -581,7 +594,8 @@ function abrirProduto(id, saborInicial = '') {
         <span id="mp-qtd">1</span>
         <button type="button" data-qtd="1" aria-label="Aumentar">+</button>
       </div>
-      <button type="button" class="btn btn-primario" id="mp-add"></button>
+      <button type="button" class="btn btn-sec" id="mp-add"></button>
+      <button type="button" class="btn btn-primario" id="mp-fin"></button>
     </footer>`;
   renderMontagem();
   abrirCamada($('#modal-produto'), () => (S.m = null));
@@ -595,6 +609,8 @@ function precoMontagem() {
   const adic = S.m.adics.reduce((t, a) => t + (S.m.adic[a.id] || 0) * (a.preco || 0), 0);
   return U.round2(U.precoPizza(precos, S.loja.regraPrecoPizza) + borda + adic);
 }
+/** Total das bebidas escolhidas na tela da pizza */
+const precoBebidas = () => U.round2((S.m.bebidas || []).reduce((t, b) => t + (S.m.beb[b.id] || 0) * (b.preco || 0), 0));
 
 function renderMontagem() {
   const { p, pizza } = S.m;
@@ -651,18 +667,37 @@ function renderMontagem() {
       }).join('');
     }
   }
+  if ($('#mp-bebidas')) {
+    $('#mp-bebidas').innerHTML = S.m.bebidas.map((b) => {
+      const q = S.m.beb[b.id] || 0;
+      const esg = !disponivel(b);
+      return `<div class="opcao${q ? ' sel' : ''}${esg ? ' esgotada' : ''}">
+        ${U.fotoHTML(b.fotoUrl, '🥤', 'opcao-foto')}
+        <span class="opcao-txt"><strong>${esc(b.nome)}</strong><small>${esg ? 'Esgotado' : fmtBRL(b.preco)}</small></span>
+        ${esg ? '' : `<div class="qtd qtd-peq">
+          <button type="button" data-beb="${esc(b.id)}" data-d="-1" ${q ? '' : 'disabled'} aria-label="Tirar ${esc(b.nome)}">−</button>
+          <span>${q}</span>
+          <button type="button" data-beb="${esc(b.id)}" data-d="1" ${q >= 20 ? 'disabled' : ''} aria-label="Adicionar ${esc(b.nome)}">+</button>
+        </div>`}
+      </div>`;
+    }).join('');
+  }
   $('#mp-qtd').textContent = S.m.qtd;
   $('[data-qtd="-1"]', $('#mp-sheet')).disabled = S.m.qtd <= 1;
   const btn = $('#mp-add');
   const falta = pizza && !S.m.sabores.length;
+  const total = U.round2(precoMontagem() * S.m.qtd + (pizza ? precoBebidas() : 0));
   btn.disabled = falta;
-  btn.textContent = falta ? 'Escolha um sabor' : `Adicionar · ${fmtBRL(precoMontagem() * S.m.qtd)}`;
+  btn.textContent = falta ? 'Escolha um sabor' : `Adicionar · ${fmtBRL(total)}`;
+  const fin = $('#mp-fin');
+  fin.disabled = falta;
+  fin.textContent = 'Adicionar e finalizar ➜';
 }
 
 $('#modal-produto').addEventListener('click', (e) => {
   if (e.target.id === 'modal-produto' || e.target.closest('[data-fechar]')) return fecharCamada();
   if (!S.m) return;
-  const t = e.target.closest('[data-sabor],[data-borda],[data-adic],[data-qtd],#mp-add');
+  const t = e.target.closest('[data-sabor],[data-borda],[data-adic],[data-beb],[data-qtd],#mp-add,#mp-fin');
   if (!t || t.disabled) return;
   if (t.dataset.sabor != null) {
     const id = t.dataset.sabor;
@@ -676,10 +711,15 @@ $('#modal-produto').addEventListener('click', (e) => {
   } else if (t.dataset.adic != null) {
     const q = (S.m.adic[t.dataset.adic] || 0) + Number(t.dataset.d);
     S.m.adic[t.dataset.adic] = Math.max(0, Math.min(5, q));
+  } else if (t.dataset.beb != null) {
+    const q = (S.m.beb[t.dataset.beb] || 0) + Number(t.dataset.d);
+    S.m.beb[t.dataset.beb] = Math.max(0, Math.min(20, q));
   } else if (t.dataset.qtd != null) {
     S.m.qtd = Math.max(1, Math.min(50, S.m.qtd + Number(t.dataset.qtd)));
   } else if (t.id === 'mp-add') {
     return adicionarAoCarrinho();
+  } else if (t.id === 'mp-fin') {
+    return adicionarAoCarrinho(true);
   }
   renderMontagem();
 });
@@ -689,7 +729,7 @@ $('#modal-produto').addEventListener('input', (e) => {
   if (e.target.id === 'mp-obs') S.m.obs = e.target.value;
 });
 
-function adicionarAoCarrinho() {
+function adicionarAoCarrinho(finalizar = false) {
   const { p, pizza } = S.m;
   const bruto = {
     produtoId: p.id,
@@ -707,10 +747,26 @@ function adicionarAoCarrinho() {
   const igual = !pizza && S.carrinho.find((it) => it.produtoId === p.id && it.tipo === 'simples' && (it.obs || '') === obs);
   if (igual) igual.qtd = Math.min(50, igual.qtd + qtd);
   else S.carrinho.push({ uid: novoUid(), produtoId: p.id, ...bruto, ...calc, obs, qtd });
+  // bebidas escolhidas na tela da pizza: cada uma vira uma linha simples no carrinho
+  let nBeb = 0;
+  if (pizza) {
+    for (const [id, q] of Object.entries(S.m.beb)) {
+      if (!(q > 0)) continue;
+      const bb = { produtoId: id, sabores: [], borda: null, adicionais: [] };
+      const cb = recalcular(bb);
+      if (!cb) continue;
+      const ja = S.carrinho.find((it) => it.produtoId === id && it.tipo === 'simples' && !it.obs);
+      if (ja) ja.qtd = Math.min(50, ja.qtd + q);
+      else S.carrinho.push({ uid: novoUid(), ...bb, ...cb, obs: '', qtd: q });
+      nBeb += q;
+    }
+  }
   salvarCarrinho();
+  // o "voltar" do fechamento é assíncrono: o carrinho só abre depois que a tela da pizza fechou
+  if (finalizar) window.addEventListener('popstate', () => abrirCarrinho(), { once: true });
   fecharCamada();
   renderBarra();
-  U.toast('Adicionado ao carrinho ✓');
+  if (!finalizar) U.toast(nBeb ? `Pizza e ${nBeb === 1 ? 'bebida' : `${nBeb} bebidas`} no carrinho ✓` : 'Adicionado ao carrinho ✓');
 }
 const novoUid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 

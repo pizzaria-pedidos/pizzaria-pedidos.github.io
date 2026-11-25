@@ -1,6 +1,6 @@
 #!/bin/bash
 # Roda as baterias de teste, cada uma com o banco do emulador limpo.
-# Uso: bash testes/rodar.sh original custos v4-novas grupos apagar fotos tempo som pronto nota ovo
+# Uso: bash testes/rodar.sh original custos v4-novas grupos apagar fotos tempo som pronto nota ovo bebida
 cd "$(dirname "$0")"
 RAIZ="$(cd .. && pwd)"
 (cd "$RAIZ" && python3 -m http.server 5500 --bind 127.0.0.1 > /dev/null 2>&1 &)
@@ -23,6 +23,7 @@ for t in "$@"; do
     pronto)     arq=e2e-pronto.mjs ;;
     nota)       arq=e2e-nota.mjs ;;
     ovo)        arq=e2e-ovo.mjs ;;
+    bebida)     arq=e2e-bebida.mjs ;;
     *) echo "bateria desconhecida: $t"; continue ;;
   esac
   REGRAS=novas timeout 300 node "$arq" > "out-$t.txt" 2>&1

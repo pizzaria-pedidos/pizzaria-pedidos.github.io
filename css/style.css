@@ -370,6 +370,9 @@ h1, h2, h3 { line-height: 1.2; font-weight: 800; }
 .mp-obs textarea { width: 100%; min-height: 72px; border: 1.5px solid var(--borda); border-radius: var(--raio-peq); padding: 12px; background: var(--superficie); resize: vertical; }
 .mp-rodape { display: flex; gap: 10px; align-items: center; padding: 12px 16px calc(12px + var(--seguro-baixo)); background: var(--superficie); border-top: 1px solid var(--borda); }
 .mp-rodape .btn { flex: 1; min-height: 52px; padding: 0 14px; }
+.mp-rodape { flex-wrap: wrap; }
+.mp-rodape #mp-fin { flex-basis: 100%; }
+.opcao.esgotada { opacity: 0.45; }
 
 /* Telas cheias (carrinho / sucesso) */
 .tela { position: fixed; inset: 0; z-index: 60; background: var(--fundo); display: flex; flex-direction: column; animation: fade 0.15s; }
