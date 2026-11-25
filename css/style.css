@@ -227,6 +227,8 @@ h1, h2, h3 { line-height: 1.2; font-weight: 800; }
 [data-emoji] { position: relative; overflow: hidden; background: linear-gradient(135deg, #ffd8a8, #ffb38a); }
 [data-emoji]::before { content: attr(data-emoji); position: absolute; inset: 0; display: grid; place-items: center; font-size: 2.2rem; }
 [data-emoji] img { position: relative; width: 100%; height: 100%; object-fit: cover; }
+/* bebidas: a foto aparece sempre inteira; o espaço que sobra fica branco */
+.foto-inteira img { object-fit: contain; background: #fff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme='light']) [data-emoji] { background: linear-gradient(135deg, #4a2a1a, #5c2a20); } }
 
 /* =====================================================================
