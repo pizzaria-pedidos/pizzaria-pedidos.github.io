@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=21';
-import * as U from './utils.js?v=21';
+} from './firebase-config.js?v=22';
+import * as U from './utils.js?v=22';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -580,7 +580,7 @@ function abrirProduto(id, saborInicial = '') {
           <div class="lista-opcoes" id="mp-adicionais"></div>
         </section>` : ''}
         ${bebidas.length ? `<section class="grupo">
-          <div class="grupo-topo"><div><h3>🥤 Bebida</h3><p>Opcional · já vai junto no pedido</p></div></div>
+          <div class="grupo-topo"><div><h3>🥤 Bebida</h3></div></div>
           <div class="lista-opcoes" id="mp-bebidas"></div>
         </section>` : ''}` : ''}
       <section class="grupo">
