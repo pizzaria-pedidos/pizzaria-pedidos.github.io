@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=23';
-import * as U from './utils.js?v=23';
+} from './firebase-config.js?v=24';
+import * as U from './utils.js?v=24';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -87,9 +87,6 @@ function bebidasParaPizza() {
     .sort((a, b) => (cats.indexOf(a.categoriaId) - cats.indexOf(b.categoriaId)) || ((a.ordem ?? 0) - (b.ordem ?? 0)) || a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 const adicDisp = () => S.adicionais.filter((a) => a.disponivel !== false);
-/** Bebida = produto simples de categoria com "bebida" no nome. A foto dela aparece sempre inteira (sem cortar). */
-const ehBebida = (p) => p.tipo !== 'pizza' && /bebida/i.test(S.categorias.find((c) => c.id === p.categoriaId)?.nome || '');
-const classeFoto = (p, classe) => (ehBebida(p) ? `${classe} foto-inteira` : classe);
 function emojiProduto(p) {
   if (p.tipo === 'pizza') return '🍕';
   const cat = S.categorias.find((c) => c.id === p.categoriaId);
@@ -396,7 +393,7 @@ function cardProduto(p) {
       ${meta ? `<p>${esc(meta)}</p>` : ''}
       <span class="preco">${textoPreco(p)}</span>
     </div>
-    ${U.fotoHTML(p.fotoUrl, emojiProduto(p), classeFoto(p, 'produto-foto'))}
+    ${U.fotoHTML(p.fotoUrl, emojiProduto(p), 'produto-foto')}
   </button>`;
 }
 
@@ -460,7 +457,7 @@ function renderCardapio() {
   $('#destaques').hidden = !dest.length;
   $('#carrossel').innerHTML = dest
     .map((p) => `<button type="button" class="destaque" data-produto="${esc(p.id)}">
-        ${U.fotoHTML(p.fotoUrl, emojiProduto(p), classeFoto(p, 'd-foto'))}
+        ${U.fotoHTML(p.fotoUrl, emojiProduto(p), 'd-foto')}
         <div class="d-txt"><h3>${esc(p.nome)}</h3><span class="preco">${textoPreco(p)}</span></div>
       </button>`)
     .join('');
@@ -558,7 +555,7 @@ function abrirProduto(id, saborInicial = '') {
   $('#mp-sheet').innerHTML = `
     <button type="button" class="btn-fechar" data-fechar aria-label="Fechar">×</button>
     <div class="sheet-corpo" style="padding:0">
-      ${U.fotoHTML(p.fotoUrl, emojiProduto(p), classeFoto(p, 'mp-foto'))}
+      ${U.fotoHTML(p.fotoUrl, emojiProduto(p), 'mp-foto')}
       <div class="mp-cabecalho">
         <h2>${esc(p.nome)}</h2>
         ${p.descricao ? `<p>${esc(p.descricao)}</p>` : ''}
@@ -675,7 +672,7 @@ function renderMontagem() {
       const q = S.m.beb[b.id] || 0;
       const esg = !disponivel(b);
       return `<div class="opcao${q ? ' sel' : ''}${esg ? ' esgotada' : ''}">
-        ${U.fotoHTML(b.fotoUrl, '🥤', 'opcao-foto foto-inteira')}
+        ${U.fotoHTML(b.fotoUrl, '🥤', 'opcao-foto')}
         <span class="opcao-txt"><strong>${esc(b.nome)}</strong><small>${esg ? 'Esgotado' : fmtBRL(b.preco)}</small></span>
         ${esg ? '' : `<div class="qtd qtd-peq">
           <button type="button" data-beb="${esc(b.id)}" data-d="-1" ${q ? '' : 'disabled'} aria-label="Tirar ${esc(b.nome)}">−</button>

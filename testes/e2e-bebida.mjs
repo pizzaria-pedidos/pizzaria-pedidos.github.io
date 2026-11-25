@@ -7,7 +7,7 @@ const { chromium, devices } = createRequire(import.meta.url)(process.env.PLAYWRI
 const DIR = path.dirname(new URL(import.meta.url).pathname);
 const SITE = 'http://127.0.0.1:5500';
 const FB = path.join(DIR, 'node_modules/firebase');
-const V = 'v=23';
+const V = 'v=24';
 const shots = path.join(DIR, 'shots-bebida');
 fs.mkdirSync(shots, { recursive: true });
 let ok = 0, falhas = 0;
@@ -145,30 +145,17 @@ await cli.click('#mp-fin');
 await cli.waitForSelector('#tela-carrinho:not([hidden])');
 check(true, 'abre o carrinho');
 
-console.log('\n6) Foto da bebida aparece inteira (sem cortar)');
+console.log('\n6) Foto da bebida preenche o quadro (igual à pizza)');
+await cli.goto(`${SITE}/index.html`);
+await cli.waitForSelector('.produto');
 await adm.evaluate(async (V) => {
   const m = await import(`/js/firebase-config.js?${V}`);
-  const cv = document.createElement('canvas'); cv.width = 200; cv.height = 600;   // garrafa "em pé": bem mais alta que larga
-  const g = cv.getContext('2d'); g.fillStyle = '#c00'; g.fillRect(0, 0, 200, 600);
+  const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
   const foto = cv.toDataURL('image/jpeg', 0.7);
   await m.updateDoc(m.doc(m.db, 'produtos', 'refri-2l'), { fotoUrl: foto });
-  await m.updateDoc(m.doc(m.db, 'produtos', 'pizza-grande'), { fotoUrl: foto });
 }, V);
-await cli.goto(`${SITE}/index.html`);
 await cli.waitForSelector('#cardapio [data-produto="refri-2l"] img');
-const fit = (sel) => cli.$eval(sel, (el) => getComputedStyle(el).objectFit);
-check(await fit('#cardapio [data-produto="refri-2l"] .produto-foto img') === 'contain', 'lista do cardápio: foto da bebida inteira');
-check(await fit('.destaque[data-produto="refri-2l"] img').catch(() => 'sem destaque') === 'contain', 'destaques: foto da bebida inteira');
-check(await fit('#cardapio [data-produto="pizza-grande"] .produto-foto img') === 'cover', 'pizza continua preenchendo o quadrado');
-await cli.screenshot({ path: `${shots}/03-foto-inteira.png` });
-await cli.click('#cardapio [data-produto="refri-2l"]');
-await cli.waitForSelector('#mp-sheet .mp-foto img');
-check(await fit('#mp-sheet .mp-foto img') === 'contain', 'topo da janela da bebida: foto inteira');
-await cli.screenshot({ path: `${shots}/04-janela-bebida.png` });
-await cli.click('#mp-sheet [data-fechar]');
-await cli.click('#cardapio [data-produto="pizza-grande"]');
-await cli.waitForSelector('#mp-bebidas img');
-check(await fit('#mp-bebidas img') === 'contain', 'tela da pizza: foto da bebida inteira');
+check(await cli.$eval('#cardapio [data-produto="refri-2l"] img', (el) => getComputedStyle(el).objectFit) === 'cover', 'sem sobras brancas: a foto preenche o quadro');
 
 check(!erros.length, `sem erros de JavaScript ${erros.join(' | ')}`);
 console.log(`\nRESULTADO: ${ok} ok, ${falhas} falha(s)`);

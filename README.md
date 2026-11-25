@@ -83,7 +83,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
   - O botão já soma pizza + bebidas. Novo botão **Adicionar e finalizar ➜**, que coloca tudo no carrinho e abre direto a tela de finalizar.
   - Versão dos arquivos `?v=21`.
   - Ajuste: o título da seção ficou só "🥤 Bebida", sem frase embaixo. Versão dos arquivos `?v=22`.
-- **Ajuste de 25/11/2026: foto da bebida sempre inteira.** Nas bebidas (categoria Bebidas), a foto nunca é cortada: aparece inteira e o espaço que sobra fica branco. Vale na lista do cardápio, nos Destaques, no topo da janela da bebida e na tela da pizza. As pizzas continuam preenchendo o quadro todo. Versão dos arquivos `?v=23`.
+- **Teste de 25/11/2026 (desfeito):** a `?v=23` mostrava a foto da bebida sempre inteira, com sobras brancas. O Eduardo não gostou, e a `?v=24` voltou ao jeito anterior: a foto preenche o quadro todo, como nas pizzas.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
 ```
@@ -217,7 +217,7 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
   - Bebida desligada no Cardápio aparece como "Esgotado", sem o botão +. Com "Esconder itens indisponíveis" marcado, ela some.
   - Para uma bebida aparecer ali, ela precisa estar na categoria **Bebidas** e ter preço. Se você renomear a categoria, mantenha a palavra "Bebida" no nome.
   - A categoria Bebidas continua no cardápio, para quem quer só bebida.
-- **Foto da bebida:** aparece sempre **inteira**, sem cortar; o espaço que sobra fica branco. A melhor foto é **quadrada (1:1)**, de 1024 × 1024 px (o painel reduz para 640 × 640), com fundo branco ou claro e a garrafa centralizada. Lugares onde ela aparece: lista do cardápio (quadrado de 96 px), tela da pizza (quadrado de 52 px), Destaques (160 × 110) e topo da janela da bebida (largura da tela × 200).
+- **Foto da bebida:** a foto preenche o quadro todo, e o que sobra do formato é cortado. Para não cortar a garrafa, use foto **quadrada (1:1)**, de 1024 × 1024 px (o painel reduz para 640 × 640), com a garrafa centralizada e margem em volta. Lugares onde ela aparece: lista do cardápio (quadrado de 96 px), tela da pizza (quadrado de 52 px), Destaques (160 × 110) e topo da janela da bebida (largura da tela × 200). Nos dois últimos, o corte pega um pouco de cima e de baixo. Mostrar a foto inteira com sobras brancas foi testado em 25/11/2026 e descartado.
 - **Esconder o que está desligado:** por padrão, produto ou sabor desligado aparece **acinzentado** para o cliente. Para ele **sumir**, marque **Ajustes → Cardápio → "Esconder itens indisponíveis"** e salve. Isso vale para tudo: produtos (ex.: a Pizza Média) e sabores esgotados.
 - **Fechar a loja agora:** use o botão no topo da tela de Pedidos. Ele vale até você reabrir. Fora desse botão, a loja abre e fecha sozinha pelo horário configurado, inclusive em horários que passam da meia-noite (ex.: 18:00 → 01:00).
 - **Preço de pizza com vários sabores:** por padrão vale o **sabor mais caro**. Dá para trocar para **média dos sabores** em Ajustes → Cardápio.
@@ -301,5 +301,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=23` → `?v=24` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=24` → `?v=25` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.
