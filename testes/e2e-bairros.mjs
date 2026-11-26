@@ -1,4 +1,4 @@
-// Testa: bairros de entrega com taxa automática + "bairro fora da lista" (⚠️) + horário de Salvador e "Fechar agora" até a próxima abertura.
+// Testa: bairros de entrega com taxa automática + "bairro fora da lista" bloqueia a entrega + horário de Salvador e "Fechar agora" até a próxima abertura.
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -7,7 +7,7 @@ const { chromium, devices } = createRequire(import.meta.url)(process.env.PLAYWRI
 const DIR = path.dirname(new URL(import.meta.url).pathname);
 const SITE = 'http://127.0.0.1:5500';
 const FB = path.join(DIR, 'node_modules/firebase');
-const V = 'v=26';
+const V = 'v=27';
 const shots = path.join(DIR, 'shots-bairros');
 fs.mkdirSync(shots, { recursive: true });
 let ok = 0, falhas = 0;
@@ -121,7 +121,7 @@ await carrinhoComRefri();
 await cli.locator('#tela-carrinho label', { hasText: 'Entrega' }).click();
 check(await cli.isVisible('#bairro-sel') && !(await cli.isVisible('[data-end="bairro"]')), 'Entrega: aparece a lista de bairros (o campo de digitar some)');
 const opcoes = await cli.$$eval('#bairro-sel option', (os) => os.map((o) => o.textContent.trim().replace(/\u00a0/g, ' ')));
-check(opcoes.join('|') === 'Escolha seu bairro…|Itapuã — R$ 8,00|Stella Maris — R$ 10,50|⚠️ Meu bairro não está na lista', `opções: ${opcoes.join(' | ')}`);
+check(opcoes.join('|') === 'Escolha seu bairro…|Itapuã — R$ 8,00|Stella Maris — R$ 10,50|❌ Meu bairro não está na lista', `opções: ${opcoes.join(' | ')}`);
 check((await cli.textContent('#resumo')).includes('escolha o bairro'), 'resumo: "Taxa de entrega: escolha o bairro"');
 await cli.fill('[data-end="rua"]', 'Rua das Flores');
 await cli.fill('[data-end="numero"]', '10');
@@ -145,33 +145,30 @@ console.log('\n3) Próximo pedido: o bairro já vem escolhido');
 await carrinhoComRefri();
 check((await cli.$eval('#bairro-sel', (s) => s.options[s.selectedIndex].textContent)).startsWith('Itapuã'), 'Itapuã já marcado');
 
-console.log('\n4) "Meu bairro não está na lista" → ⚠️ ATENÇÃO');
+console.log('\n4) "Meu bairro não está na lista" → não deixa pedir entrega');
 url = null;
-await cli.selectOption('#bairro-sel', { label: '⚠️ Meu bairro não está na lista' });
+const nPed = (await pedidos()).length;
+await cli.selectOption('#bairro-sel', { label: '❌ Meu bairro não está na lista' });
 await cli.waitForTimeout(200);
-check(await cli.isVisible('#info-bairro') && (await cli.textContent('#info-bairro')).includes('combinar a taxa de entrega com você pelo WhatsApp'), 'aviso: combinar a taxa pelo WhatsApp');
-check(await cli.isVisible('[data-end="bairro"]') && (await cli.textContent('#rotulo-bairro')).includes('Qual é o seu bairro'), 'aparece o campo "Qual é o seu bairro?"');
-check((await cli.textContent('#resumo')).includes('a combinar'), 'resumo: taxa "⚠️ a combinar"');
-await cli.click('#btn-finalizar');
-check((await cli.textContent('#checkout-erro')).includes('bairro'), 'sem escrever o bairro: pede o bairro');
-await cli.fill('[data-end="bairro"]', 'Vilas do Atlântico');
+const info = await cli.textContent('#info-bairro');
+check(await cli.isVisible('#info-bairro') && info.includes('Ainda não entregamos no seu bairro') && info.includes('Retirar no local'), 'aviso: "Ainda não entregamos no seu bairro… Retirar no local"');
+const zap = await cli.getAttribute('#zap-bairro', 'href');
+check(zap && zap.includes('api.whatsapp.com/send') && zap.includes('5571988887777'), 'botão "💬 falar com a gente no WhatsApp" (sem pedido)');
+check(!(await cli.isVisible('[data-end="bairro"]')), 'não aparece campo para digitar outro bairro');
+check(await cli.isDisabled('#btn-finalizar') && (await cli.textContent('#btn-finalizar')).includes('Não entregamos nesse bairro'), 'botão de finalizar bloqueado: "Não entregamos nesse bairro"');
+check((await cli.textContent('#resumo')).includes('não entregamos'), 'resumo: taxa "não entregamos"');
 await cli.locator('#campos-entrega').scrollIntoViewIfNeeded();
 await cli.screenshot({ path: `${shots}/03-fora-da-lista.png` });
+await cli.click('#btn-finalizar', { force: true });
+await cli.waitForTimeout(1500);
+check((await pedidos()).length === nPed && !url, 'nenhum pedido foi gravado nem enviado');
+
+console.log('\n5) Mudou para "Retirar no local" → pode finalizar');
+await cli.locator('#tela-carrinho label', { hasText: 'Retirar no local' }).click();
+check(!(await cli.isDisabled('#btn-finalizar')), 'retirada: botão liberado');
 await cli.click('#btn-finalizar');
 await cli.waitForTimeout(2500);
-msg = url ? decodeURIComponent(url.split('text=')[1]).replace(/\u00a0/g, ' ') : '';
-check(msg.includes('— Vilas do Atlântico') && msg.includes('⚠️ *ATENÇÃO: bairro fora da lista de entrega — combinar a taxa*'), 'WhatsApp: linha "⚠️ *ATENÇÃO: bairro fora da lista de entrega — combinar a taxa*"');
-check(msg.includes('Taxa de entrega: ⚠️ a combinar') && msg.includes('(sem a taxa de entrega)'), 'WhatsApp: taxa "a combinar" e total "(sem a taxa de entrega)"');
-const p2 = (await pedidos()).find((p) => p.endereco?.bairro === 'Vilas do Atlântico');
-check(p2 && p2.endereco.foraDaLista === true && p2.taxaEntrega === 0, 'pedido gravado com foraDaLista e taxa 0');
-
-console.log('\n5) Painel: pedido fora da lista vem com ⚠️');
-await adm.click('[data-view="pedidos"]');
-await adm.waitForSelector('.pc-alerta');
-const alerta = await adm.textContent('.pc-alerta');
-check(alerta.includes('⚠️') && alerta.includes('ATENÇÃO') && alerta.includes('combinar a taxa'), 'card: "⚠️ ATENÇÃO: bairro fora da lista de entrega — combinar a taxa"');
-check((await adm.$$('.pc-alerta')).length === 1, 'só o pedido fora da lista tem o aviso');
-await adm.screenshot({ path: `${shots}/04-painel-alerta.png`, fullPage: true });
+check((await pedidos()).length === nPed + 1 && url, 'pedido de retirada enviado normalmente');
 
 console.log('\n6) Sem bairros cadastrados: volta ao jeito antigo (taxa única)');
 await adm.evaluate(async (V) => {
@@ -179,6 +176,7 @@ await adm.evaluate(async (V) => {
   await m.setDoc(m.doc(m.db, 'config', 'loja'), { bairros: [] }, { merge: true });
 }, V);
 await carrinhoComRefri();
+await cli.locator('#tela-carrinho label', { hasText: 'Entrega' }).click();
 check(!(await cli.isVisible('#bairro-sel')) && await cli.isVisible('[data-end="bairro"]'), 'sem lista: o cliente digita o bairro');
 check((await cli.textContent('#resumo')).includes('5,00'), 'taxa única do painel (R$ 5,00)');
 
@@ -209,6 +207,7 @@ await cli.waitForSelector('#tela-carrinho:not([hidden])');
 check(await cli.isDisabled('#btn-finalizar') && (await cli.textContent('#btn-finalizar')).includes('Loja fechada'), 'botão de finalizar bloqueado: "Loja fechada — abrimos …"');
 
 console.log('\n8) "Fechar agora" vale só até a próxima abertura');
+await adm.click('[data-view="pedidos"]');
 // volta a abrir o dia todo e fecha pelo botão
 await adm.evaluate(async (V) => {
   const m = await import(`/js/firebase-config.js?${V}`);

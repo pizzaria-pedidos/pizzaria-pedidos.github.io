@@ -88,9 +88,9 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
   - **Quantidade diferente na metade e no terço**: substitui a caixinha "Quantidade fixa". Em Fichas → Sabores, cada ingrediente tem o botão **✏️ Quantidade diferente na metade e no terço** (ex.: Portuguesa com 3 ovos na inteira, 2 na metade e 1 no terço).
   - Versão dos arquivos `?v=25`.
 - **Novidades de 26/11/2026 (2):**
-  - **🏘️ Bairros de entrega com taxa automática** (Ajustes → Entrega e pagamento). O cliente escolhe o bairro numa lista. Se o bairro dele não estiver lá, ele marca "Meu bairro não está na lista" e o pedido chega com **⚠️ ATENÇÃO** para combinar a taxa.
+  - **🏘️ Bairros de entrega com taxa automática** (Ajustes → Entrega e pagamento). O cliente escolhe o bairro numa lista. **Só dá para pedir entrega nos bairros da lista**: quem marca "Meu bairro não está na lista" não consegue finalizar com entrega e é orientado a retirar no local ou falar no WhatsApp (v27).
   - **Horário automático de verdade:** sempre na hora de Salvador, e o "Fechar agora" vale só até a próxima abertura (depois a loja abre sozinha).
-  - Versão dos arquivos `?v=26`.
+  - Versão dos arquivos `?v=26`; com o bloqueio de bairro fora da lista, `?v=27`.
 - **Teste de 25/11/2026 (desfeito):** a `?v=23` mostrava a foto da bebida sempre inteira, com sobras brancas. O Eduardo não gostou, e a `?v=24` voltou ao jeito anterior: a foto preenche o quadro todo, como nas pizzas.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
@@ -245,7 +245,8 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
   1. Digite o **nome do bairro** e a **taxa** (ex.: Itapuã, 8) e toque em **+ Adicionar**. Salva na hora, sem precisar do botão Salvar.
   2. Para mudar uma taxa ou um nome, edite o campo e saia dele. Para excluir, toque no **✕**.
   - O cliente, ao escolher **Entrega**, vê a lista **"Escolha seu bairro…"** com a taxa de cada um. A taxa entra sozinha no total e na mensagem do WhatsApp.
-  - Última opção da lista: **"⚠️ Meu bairro não está na lista"**. O cliente escreve o bairro e vê o aviso de que a taxa será combinada pelo WhatsApp. O pedido chega com **"⚠️ ATENÇÃO: bairro fora da lista de entrega — combinar a taxa"** na mensagem e no card do painel, e o total vai **sem** a taxa.
+  - Última opção da lista: **"❌ Meu bairro não está na lista"**. Aparece **"😕 Ainda não entregamos no seu bairro. Só entregamos nos bairros da lista. Você pode escolher 🏃 Retirar no local ou 💬 falar com a gente no WhatsApp"**, e o botão de finalizar fica bloqueado ("Não entregamos nesse bairro"). **Nenhum pedido de entrega é enviado para bairro fora da lista.** O link do WhatsApp só abre uma conversa, sem pedido.
+  - **Cadastre só os bairros onde você entrega.**
   - Sem nenhum bairro cadastrado, vale a **taxa única** e o cliente digita o bairro, como antes.
   - "Mais informações", no site do cliente, mostra a lista de bairros com as taxas.
 - **Preço de pizza com vários sabores:** por padrão vale o **sabor mais caro**. Dá para trocar para **média dos sabores** em Ajustes → Cardápio.
@@ -336,5 +337,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=26` → `?v=27` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=27` → `?v=28` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

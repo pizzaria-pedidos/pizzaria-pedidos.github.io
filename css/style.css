@@ -483,7 +483,6 @@ h1, h2, h3 { line-height: 1.2; font-weight: 800; }
 .pc-itens li { padding: 4px 0; border-bottom: 1px dashed var(--borda); }
 .pc-itens li:last-child { border: 0; }
 .pc-itens .det { display: block; color: var(--texto-2); font-size: 0.84rem; padding-left: 8px; }
-.pc-alerta { background: var(--aviso-fundo); color: var(--aviso); border-radius: var(--raio-peq); padding: 10px 12px; font-size: 0.92rem; margin-bottom: 10px; }
 .bairro-linha { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 8px; align-items: center; margin-bottom: 8px; }
 .bairro-linha .btn-icone { width: 40px; height: 40px; color: var(--erro); }
 .pc-total { display: flex; justify-content: space-between; font-weight: 900; font-size: 1.1rem; }

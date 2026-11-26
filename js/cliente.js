@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=26';
-import * as U from './utils.js?v=26';
+} from './firebase-config.js?v=27';
+import * as U from './utils.js?v=27';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -361,7 +361,7 @@ function abrirInfo() {
       ${l.endereco ? `<li><strong>📍 Endereço</strong>${esc(l.endereco)}</li>` : ''}
       <li><strong>🕒 Horário de funcionamento</strong><table class="horarios-tabela">${horarios}</table></li>
       <li><strong>🛵 Entrega</strong>${!entregaOn() ? 'Hoje não estamos fazendo entregas — só retirada no local.'
-        : U.bairrosLoja(l).length ? `Taxa por bairro:<br>${U.bairrosLoja(l).map((b) => `${esc(b.nome)}: ${b.taxa ? fmtBRL(b.taxa) : 'grátis'}`).join('<br>')}<br><small>Outro bairro? Fale com a gente no WhatsApp.</small>`
+        : U.bairrosLoja(l).length ? `Entregamos só nestes bairros:<br>${U.bairrosLoja(l).map((b) => `${esc(b.nome)}: ${b.taxa ? fmtBRL(b.taxa) : 'grátis'}`).join('<br>')}<br><small>Outro bairro? Escolha retirar no local ou fale com a gente no WhatsApp.</small>`
         : `Taxa: ${l.taxaEntrega ? fmtBRL(l.taxaEntrega) : 'grátis'}`}</li>
       ${l.pedidoMinimo ? `<li><strong>🧾 Pedido mínimo</strong>${fmtBRL(l.pedidoMinimo)}</li>` : ''}
       ${l.tempoEntrega || l.tempoRetirada ? `<li><strong>⏱️ Tempo de espera</strong>${[entregaOn() && l.tempoEntrega ? `Entrega: ${esc(l.tempoEntrega)}` : '', l.tempoRetirada ? `Retirada: ${esc(l.tempoRetirada)}` : ''].filter(Boolean).join('<br>')}</li>` : ''}
@@ -799,7 +799,7 @@ function bairroEscolhido() {
   if (id === U.BAIRRO_FORA) return { fora: true };
   return lista.find((b) => b.id === id) || null;
 }
-/** Taxa de entrega: pelo bairro (se a pizzaria cadastrou bairros) ou a taxa única. Fora da lista = a combinar (0). */
+/** Taxa de entrega: pelo bairro (se a pizzaria cadastrou bairros) ou a taxa única. Fora da lista = não entrega. */
 function taxa() {
   if (S.checkout.tipo !== 'entrega') return 0;
   if (!U.bairrosLoja(S.loja).length) return U.round2(S.loja.taxaEntrega);
@@ -817,18 +817,21 @@ function renderBairro() {
   }
   const b = bairroEscolhido();
   $('#campo-bairro-sel').hidden = !lista.length;
-  $('#campo-bairro-txt').hidden = !!lista.length && !b?.fora;
-  $('#rotulo-bairro').textContent = b?.fora ? 'Qual é o seu bairro? *' : 'Bairro *';
+  // com lista de bairros, o bairro vem da lista (o campo de digitar só existe sem lista)
+  $('#campo-bairro-txt').hidden = !!lista.length;
   if (lista.length) {
     const sel = S.checkout.endereco?.bairroId || '';
     $('#bairro-sel').innerHTML = `<option value="">Escolha seu bairro…</option>${lista.map((x) =>
       `<option value="${esc(x.id)}" ${x.id === sel ? 'selected' : ''}>${esc(x.nome)} — ${x.taxa ? fmtBRL(x.taxa) : 'grátis'}</option>`).join('')}
-      <option value="${U.BAIRRO_FORA}" ${sel === U.BAIRRO_FORA ? 'selected' : ''}>⚠️ Meu bairro não está na lista</option>`;
+      <option value="${U.BAIRRO_FORA}" ${sel === U.BAIRRO_FORA ? 'selected' : ''}>❌ Meu bairro não está na lista</option>`;
   }
   const inp = $('[data-end="bairro"]');
   if (inp && document.activeElement !== inp) inp.value = S.checkout.endereco?.bairro || '';
   $('#info-bairro').hidden = !b?.fora;
-  $('#info-bairro').innerHTML = '⚠️ <b>Seu bairro não está na nossa lista de entrega.</b> Escreva o nome do bairro e envie o pedido normalmente: vamos <b>combinar a taxa de entrega com você pelo WhatsApp</b> antes de preparar.';
+  // só entregamos nos bairros da lista: fora dela não dá para pedir entrega
+  const zap = S.loja.whatsapp ? U.linkWhats(S.loja.whatsapp, 'Olá! Meu bairro não está na lista de entrega do site. Vocês entregam no bairro ') : '';
+  $('#info-bairro').innerHTML = `😕 <b>Ainda não entregamos no seu bairro.</b> Só entregamos nos bairros da lista.<br>
+    Você pode escolher <b>🏃 Retirar no local</b>${zap ? ` ou <a class="link" href="${esc(zap)}" target="_blank" rel="noopener" id="zap-bairro">💬 falar com a gente no WhatsApp</a>` : ''}.`;
 }
 
 function renderBarra() {
@@ -865,6 +868,7 @@ function estadoFinalizar() {
   const st = U.statusLoja(S.loja);
   if (!S.carrinho.length) return { ok: false, texto: 'Carrinho vazio' };
   if (!st.aberta) return { ok: false, texto: st.abre ? `Loja fechada — abrimos ${st.abre}` : 'Loja fechada no momento' };
+  if (S.checkout.tipo === 'entrega' && bairroEscolhido()?.fora) return { ok: false, texto: 'Não entregamos nesse bairro' };
   if (S.carrinho.some((it) => it.indisponivel)) return { ok: false, texto: 'Remova os itens indisponíveis' };
   if (S.loja.pedidoMinimo && subtotal() < S.loja.pedidoMinimo) return { ok: false, texto: `Pedido mínimo: ${fmtBRL(S.loja.pedidoMinimo)}` };
   return { ok: true, texto: 'Finalizar pedido no WhatsApp' };
@@ -924,8 +928,8 @@ function renderCarrinho() {
   const faltaMin = l.pedidoMinimo && sub < l.pedidoMinimo ? l.pedidoMinimo - sub : 0;
   $('#resumo').innerHTML = `
     <div class="resumo-linha"><span>Subtotal</span><span>${fmtBRL(sub)}</span></div>
-    ${entrega ? `<div class="resumo-linha"><span>Taxa de entrega</span><span>${bairroEscolhido()?.fora ? '⚠️ a combinar' : U.bairrosLoja(l).length && !bairroEscolhido() ? 'escolha o bairro' : tx ? fmtBRL(tx) : 'Grátis'}</span></div>` : ''}
-    <div class="resumo-total"><span>Total${entrega && bairroEscolhido()?.fora ? ' <small>(sem a entrega)</small>' : ''}</span><span>${fmtBRL(sub + tx)}</span></div>
+    ${entrega ? `<div class="resumo-linha"><span>Taxa de entrega</span><span>${bairroEscolhido()?.fora ? 'não entregamos' : U.bairrosLoja(l).length && !bairroEscolhido() ? 'escolha o bairro' : tx ? fmtBRL(tx) : 'Grátis'}</span></div>` : ''}
+    <div class="resumo-total"><span>Total</span><span>${fmtBRL(sub + tx)}</span></div>
     ${U.tempoEspera(l, S.checkout.tipo) ? `<p class="resumo-tempo">⏱️ Tempo de espera estimado: <b>${esc(U.tempoEspera(l, S.checkout.tipo))}</b></p>` : ''}
     ${faltaMin ? `<p class="alerta">Pedido mínimo de ${fmtBRL(l.pedidoMinimo)}. Faltam ${fmtBRL(faltaMin)}.</p>` : ''}`;
 
@@ -969,12 +973,11 @@ $('#tela-carrinho').addEventListener('change', (e) => {
   const id = e.target.value;
   const b = U.bairrosLoja(S.loja).find((x) => x.id === id);
   // da lista: o bairro já vem escrito; "não está na lista": a pessoa escreve
-  S.checkout.endereco = { ...S.checkout.endereco, bairroId: id, bairro: b ? b.nome : (S.checkout.endereco?.bairroId === U.BAIRRO_FORA ? S.checkout.endereco?.bairro || '' : '') };
+  S.checkout.endereco = { ...S.checkout.endereco, bairroId: id, bairro: b ? b.nome : '' };
   e.target.closest('.campo')?.classList.remove('invalido');
   $('#checkout-erro').textContent = '';
   salvarCheckout();
   renderCarrinho();
-  if (id === U.BAIRRO_FORA) setTimeout(() => $('[data-end="bairro"]').focus(), 30);
 });
 $('#tela-carrinho').addEventListener('input', (e) => {
   const k = e.target.dataset.end;
@@ -1025,7 +1028,6 @@ function montarPedido() {
           rua: (e.rua || '').trim(), numero: (e.numero || '').trim(), bairro: (e.bairro || '').trim(),
           complemento: (e.complemento || '').trim(), referencia: (e.referencia || '').trim(),
           ...(U.bairrosLoja(S.loja).length && e.bairroId ? { bairroId: e.bairroId } : {}),
-          ...(bairroEscolhido()?.fora ? { foraDaLista: true } : {}),
         }
       : null,
     pagamento: S.checkout.pagamento,
@@ -1095,7 +1097,6 @@ function montarMensagem(p, info) {
     const e = p.endereco;
     L.push('🛵 *Entrega*');
     L.push(`📍 ${e.rua}, ${e.numero} — ${e.bairro}`);
-    if (e.foraDaLista) L.push('⚠️ *ATENÇÃO: bairro fora da lista de entrega — combinar a taxa*');
     const extra = [e.complemento && `Complemento: ${e.complemento}`, e.referencia && `Ref.: ${e.referencia}`].filter(Boolean);
     if (extra.length) L.push(`   ${extra.join(' · ')}`);
   } else {
@@ -1108,8 +1109,8 @@ function montarMensagem(p, info) {
     : U.PAGAMENTOS[p.pagamento];
   L.push(`💳 *Pagamento:* ${pag}`);
   L.push('', `Subtotal: ${fmtBRL(p.subtotal)}`);
-  if (p.tipo === 'entrega') L.push(`Taxa de entrega: ${p.endereco?.foraDaLista ? '⚠️ a combinar' : p.taxaEntrega ? fmtBRL(p.taxaEntrega) : 'Grátis'}`);
-  L.push(`*TOTAL: ${fmtBRL(p.total)}*${p.endereco?.foraDaLista ? ' (sem a taxa de entrega)' : ''}`);
+  if (p.tipo === 'entrega') L.push(`Taxa de entrega: ${p.taxaEntrega ? fmtBRL(p.taxaEntrega) : 'Grátis'}`);
+  L.push(`*TOTAL: ${fmtBRL(p.total)}*`);
   const tempo = U.tempoEspera(S.loja, p.tipo);
   if (tempo) L.push('', `⏱️ *Tempo de espera estimado:* ${tempo}`);
   return L.join('\n');

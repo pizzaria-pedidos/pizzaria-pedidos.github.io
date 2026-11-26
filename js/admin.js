@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp, deleteField,
-} from './firebase-config.js?v=26';
+} from './firebase-config.js?v=27';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=26';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=26';
+import * as U from './utils.js?v=27';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=27';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -306,7 +306,7 @@ function itensHTML(itens) {
 function enderecoTexto(p) {
   if (p.tipo !== 'entrega' || !p.endereco) return '🏃 Retirada no local';
   const e = p.endereco;
-  return `🛵 ${e.rua}, ${e.numero} — ${e.bairro}${e.foraDaLista ? ' (fora da lista)' : ''}${e.complemento ? ` · ${e.complemento}` : ''}${e.referencia ? ` · Ref.: ${e.referencia}` : ''}`;
+  return `🛵 ${e.rua}, ${e.numero} — ${e.bairro}${e.complemento ? ` · ${e.complemento}` : ''}${e.referencia ? ` · Ref.: ${e.referencia}` : ''}`;
 }
 function pagamentoTexto(p) {
   if (p.pagamento === 'dinheiro') return `💵 Dinheiro${p.troco ? ` (troco p/ ${fmtBRL(p.troco)})` : ' (sem troco)'}`;
@@ -406,7 +406,6 @@ function pedidoHTML(p, comAcoes = true) {
     <div class="pc-cliente">${esc(p.clienteNome)}${apelidoHTML(p.clienteTel)} <small>${U.fmtTel(p.clienteTel)}</small></div>
     ${comAcoes ? historicoClienteHTML(p.clienteTel, p.id) : ''}
     <div class="pc-bloco">${esc(enderecoTexto(p))}</div>
-    ${p.tipo === 'entrega' && p.endereco?.foraDaLista ? '<div class="pc-alerta">⚠️ <b>ATENÇÃO:</b> bairro fora da lista de entrega — combinar a taxa com o cliente</div>' : ''}
     ${itensHTML(p.itens || [])}
     <div class="pc-bloco">${esc(pagamentoTexto(p))}</div>
     <div class="pc-total${p.ajuste ? ' riscado' : ''}"><span>Total${p.taxaEntrega ? ` <small style="font-weight:600">(entrega ${fmtBRL(p.taxaEntrega)})</small>` : ''}</span><span>${fmtBRL(p.total)}</span></div>
@@ -1365,7 +1364,7 @@ function renderBairrosCfg() {
       <input class="input" id="nb-taxa" inputmode="decimal" placeholder="Taxa R$">
       <button type="button" class="btn btn-sec btn-peq" id="nb-add">+ Adicionar</button></div>
     <small class="cu-dica" style="display:block">${lista.length
-      ? `O cliente escolhe o bairro numa lista e a taxa entra sozinha. Se o bairro dele não estiver aqui, ele marca <b>“Meu bairro não está na lista”</b> e o pedido chega com <b>⚠️ ATENÇÃO</b> para vocês combinarem a taxa. (A taxa única acima não é usada.)`
+      ? `O cliente escolhe o bairro numa lista e a taxa entra sozinha. <b>Só dá para pedir entrega nestes bairros:</b> se o bairro dele não estiver aqui, ele não consegue finalizar com entrega e é orientado a retirar no local ou falar com vocês no WhatsApp. (A taxa única acima não é usada.)`
       : 'Nenhum bairro cadastrado: vale a <b>taxa única</b> acima e o cliente digita o bairro.'}</small>`;
 }
 async function salvarBairros(lista, msg) {
