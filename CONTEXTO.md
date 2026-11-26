@@ -56,7 +56,7 @@ CONTEXTO.md       este arquivo
 testes/           testes automáticos (emulador Firebase + Playwright). Veja testes/LEIA-ME.md
 ```
 
-⚠️ **Versão dos arquivos: hoje é `?v=29`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=30`) **em todos os lugares**. Depois rode `python3 testes/versao.py 30` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
+⚠️ **Versão dos arquivos: hoje é `?v=30`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=31`) **em todos os lugares**. Depois rode `python3 testes/versao.py 31` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
 
 ## 4. Dados no Firestore
 
@@ -66,6 +66,7 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
 - `pedidos/{id}`: itens[] (com cópia de nomes e preços), tipo, endereco{rua,numero,bairro,complemento,referencia, **bairroId?**, **foraDaLista?**}, pagamento, troco, subtotal, taxaEntrega, total, status, criadoEm, **origem** ('balcao' quando o dono registrou pelo 🏪 Pedido no balcão; ausente = cliente pelo link), **prontoEm, informadoEm, concluidoEm**, **ajuste**{recebido, desconto, motivo, em} (opcional, gravado pelo admin no 💸 Ajustar valor; `U.valorRecebido(p)` e `U.descontoAjuste(p)` em `js/utils.js`; o faturamento e o Balanço usam o recebido; itens e total ficam intactos).
 - `clientes/{tel}`: nome, **apelido**, telefone, totalPedidos, totalGasto, primeiro/ultimoPedidoEm, ultimoEndereco, ultimosPedidos[].
 - `custos/fichas` (só admin): pinHash, massa{rende,itens}, base{itens}, sabores{id:{itens}}, bordas, adicionais, simples{produtoId:{qtd,preco,hist}}, tamanhos{ref,fator}, **ingredientes**{id:{nome,base:'kg'|'L'|'un',preco,emb,hist[{d,p,desc}],at}}, **apelidos**{assinatura→destino}, **lucroMinimo**. Os itens das fichas são `{id, ing, usa, meia?, terco?}`. `meia`/`terco` (só em sabores) = quantidade própria quando o sabor é ½ ou ⅓ da pizza (ex.: Portuguesa: usa 3 ovos, meia 2, terco 1); vazio ou ausente = divide sozinho (`qtdFrac` em `js/custos.js`). O antigo `fixo` (v20–v24) é convertido sozinho e removido.
+- **Como `custos/fichas` é salvo (27/11/2026):** `BASE` = última versão da nuvem; `CU` = o que está na tela. `gravar()` grava **só as diferenças** com `updateDoc` + `FieldPath` (cada item de `ingredientes`, `sabores`, `bordas`, `adicionais`, `simples` e `apelidos` separado; o resto por chave). Um snapshot novo da nuvem vira a `BASE` e as alterações locais pendentes são reaplicadas por cima. Erro → "⚠️ Não salvou" e nova tentativa em 8 s; `beforeunload` avisa. **Nunca voltar a usar `setDoc(fichas, CU)` inteiro**: com o painel aberto no celular e no notebook, isso apagou o custo das bebidas e o preço da Calabresa/Frango em 26/11 (bateria de testes `sincronia`).
 - `custosPedidos/{pedidoId}` (só admin): custo, venda e linhas gravados no momento do pedido.
 - **Fotos** ficam como `data:image/jpeg;base64` dentro do próprio documento, reduzidas no navegador. Não usa Storage, porque o Storage exige o plano Blaze.
 
@@ -155,6 +156,7 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
 ## 9. Pendências e próximos passos possíveis
 
 - **Reabrir a loja uma vez no painel:** em 26/11 a loja estava com `fechadoManual: true` **sem data** (botão antigo). Até ele tocar em "toque para reabrir", ela não abre sozinha. Depois disso, o horário automático funciona.
+- **Preencher de novo o que se perdeu em 26/11:** custo do fardo da Pepsi 1L e da Antarctica 1L (Fichas → Bebidas e outros) e o preço novo da Calabresa e do Frango (🧾 Ingredientes). O pedido do Chacal (balcão, 26/11) ficou com "sem custo" na Antarctica e "sem ficha" em Milho e Atum c/ Catupiry.
 - **Cadastrar os bairros** de entrega em Ajustes → Entrega e pagamento.
 - **💸 Ajuste do pedido do Ramon (25/11):** ele vai aplicar recebido R$ 65,76, motivo "divergência no pedido".
 - **Fichas que faltam:** sabores Milho, Baiana, Mista, Portuguesa (com ovos 3 / 2 / 1 na metade e no terço), Atum, Atum c/ Catupiry e Bacon; custo do fardo da Antarctica 1L e da Pepsi 1L.
@@ -173,4 +175,4 @@ Veja `testes/LEIA-ME.md`. Resumo:
 - o site é servido localmente;
 - o Playwright faz o papel do cliente e do admin.
 
-São 15 baterias e ~370 verificações. Todas passavam na versão `?v=29`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.
+São 16 baterias e ~385 verificações. Todas passavam na versão `?v=30`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.

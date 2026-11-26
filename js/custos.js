@@ -8,10 +8,10 @@
 //    custosPedidos/{id}   → custo/venda/lucro gravados de cada pedido
 // =====================================================================
 import {
-  db, doc, setDoc, onSnapshot, collection, query, where, writeBatch, Timestamp, serverTimestamp,
-} from './firebase-config.js?v=29';
-import * as U from './utils.js?v=29';
-import * as N from './notas.js?v=29';
+  db, doc, setDoc, updateDoc, deleteField, FieldPath, onSnapshot, collection, query, where, writeBatch, Timestamp, serverTimestamp,
+} from './firebase-config.js?v=30';
+import * as U from './utils.js?v=30';
+import * as N from './notas.js?v=30';
 
 const { esc, fmtBRL: brl } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -24,7 +24,6 @@ let TAB = 'balanco', FICHA = 'ingredientes';
 let NOTA = null, NOTA_RES = null;   // nota fiscal em conferência / resultado da última aplicada
 let SABSEL = '', BORSEL = '', ADSEL = '', GRAMTAM = '';
 let DIA = inicioDia(new Date());
-let ultimaEdicao = 0;
 const unsubs = [];
 let unsubBal = [];
 
@@ -244,42 +243,110 @@ export function calcPedido(p) {
 //  Firestore
 // ---------------------------------------------------------------------
 const refFichas = () => doc(db, 'custos', 'fichas');
-// Enquanto houver alteração esperando para salvar (ou salvando), os dados que
-// chegam da nuvem são ignorados — assim uma confirmação atrasada (internet
-// fraca) nunca apaga o que você acabou de digitar.
-let _t, agendado = false, emAndamento = 0;
-function salvar() {
-  ultimaEdicao = Date.now();
-  agendado = true;
-  clearTimeout(_t);
-  _t = setTimeout(() => {
-    agendado = false;
-    emAndamento++;
-    setDoc(refFichas(), CU)
-      .catch((e) => { ctx.tratarErro(e); U.toast('Erro ao salvar custos.', 'erro-t'); })
-      .finally(() => { emAndamento--; ultimaEdicao = Date.now(); });
-  }, 700);
+// Salvamento seguro com o painel aberto em mais de um lugar (celular + notebook, duas abas):
+//  - BASE é a última versão que veio da nuvem; CU é o que está na tela.
+//  - Ao salvar, grava SÓ o que mudou em relação à BASE (cada bebida, ingrediente, sabor… separado),
+//    com updateDoc — o que outro aparelho salvou em outra parte não é apagado.
+//  - Quando chega uma versão nova da nuvem e ainda há alteração local não salva, as alterações
+//    locais são reaplicadas por cima da versão nova (nada se perde dos dois lados).
+//  - Se falhar (internet, login expirado), avisa na tela e tenta de novo sozinho.
+const MAPAS = ['ingredientes', 'sabores', 'bordas', 'adicionais', 'simples', 'apelidos'];
+const DEL = Symbol('apagar');
+const copia = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
+let BASE = null;                 // última versão da nuvem (null = documento ainda não existe)
+let _t, agendado = false, emAndamento = 0, falhou = false, _retry;
+/** Diferenças CU × BASE: [[chave, subchave|null, valor|DEL]] */
+function diferencas(base, cu) {
+  const ops = [];
+  const b = base || {};
+  const chaves = new Set([...Object.keys(b), ...Object.keys(cu)]);
+  for (const k of chaves) {
+    if (k.startsWith('_')) continue;
+    if (MAPAS.includes(k) && cu[k] && typeof cu[k] === 'object' && b[k] && typeof b[k] === 'object') {
+      for (const sub of new Set([...Object.keys(b[k]), ...Object.keys(cu[k])])) {
+        if (!(sub in cu[k])) ops.push([k, sub, DEL]);
+        else if (JSON.stringify(cu[k][sub]) !== JSON.stringify(b[k][sub])) ops.push([k, sub, copia(cu[k][sub])]);
+      }
+    } else if (!(k in cu)) ops.push([k, null, DEL]);
+    else if (JSON.stringify(cu[k]) !== JSON.stringify(b[k])) ops.push([k, null, copia(cu[k])]);
+  }
+  return ops;
 }
-
-/** Grava já (sem esperar) — usado ao aplicar uma nota fiscal */
-function salvarAgora() {
+function aplicar(obj, ops) {
+  for (const [k, sub, v] of ops) {
+    if (sub === null) { if (v === DEL) delete obj[k]; else obj[k] = copia(v); continue; }
+    if (!obj[k] || typeof obj[k] !== 'object') obj[k] = {};
+    if (v === DEL) delete obj[k][sub]; else obj[k][sub] = copia(v);
+  }
+  return obj;
+}
+function statusSalvo() {
+  const el = document.getElementById('cu-salvo');
+  if (!el) return;
+  const pend = agendado || emAndamento > 0;
+  el.className = `cu-salvo ${falhou ? 'erro' : pend ? 'salvando' : 'ok'}`;
+  el.textContent = falhou ? '⚠️ Não salvou — tentando de novo…' : pend ? '💾 Salvando…' : '✓ Tudo salvo';
+}
+async function gravar() {
   clearTimeout(_t);
   agendado = false;
-  ultimaEdicao = Date.now();
+  const ops = diferencas(BASE, CU);
+  if (!ops.length && BASE) { statusSalvo(); return; }
   emAndamento++;
-  return setDoc(refFichas(), CU)
-    .catch((e) => { ctx.tratarErro(e); U.toast('Erro ao salvar custos.', 'erro-t'); })
-    .finally(() => { emAndamento--; ultimaEdicao = Date.now(); });
+  statusSalvo();
+  try {
+    if (!BASE) {
+      await setDoc(refFichas(), copia(CU));
+    } else {
+      const args = ops.flatMap(([k, sub, v]) => [sub === null ? new FieldPath(k) : new FieldPath(k, sub), v === DEL ? deleteField() : v]);
+      await updateDoc(refFichas(), ...args);
+    }
+    BASE = aplicar(BASE ? copia(BASE) : {}, ops.length ? ops : diferencas({}, CU));
+    falhou = false;
+    clearTimeout(_retry);
+  } catch (e) {
+    console.error('Erro ao salvar custos', e);
+    falhou = true;
+    ctx.tratarErro(e);
+    U.toast('⚠️ Não foi possível salvar os custos. Tentando de novo…', 'erro-t');
+    clearTimeout(_retry);
+    _retry = setTimeout(() => { if (falhou) gravar(); }, 8000);
+  } finally {
+    emAndamento--;
+    statusSalvo();
+  }
 }
+function salvar() {
+  agendado = true;
+  clearTimeout(_t);
+  _t = setTimeout(gravar, 700);
+  statusSalvo();
+}
+
+/** Grava já (sem esperar) — usado ao aplicar uma nota fiscal, PIN e importação */
+function salvarAgora() {
+  return gravar();
+}
+// avisa antes de fechar a página se ainda tem alteração não salva
+window.addEventListener('beforeunload', (e) => {
+  if (agendado || emAndamento > 0 || falhou) { gravar(); e.preventDefault(); e.returnValue = ''; }
+});
 
 export function iniciarCustos(c) {
   ctx = c;
   pararCustos();
   unsubs.push(onSnapshot(refFichas(), (s) => {
-    if (carregado && (agendado || emAndamento > 0 || s.metadata.hasPendingWrites || Date.now() - ultimaEdicao < 3000)) return;
-    CU = normCU(s.exists() ? s.data() : null);
+    if (s.metadata.hasPendingWrites) return;   // eco do que este aparelho acabou de gravar
+    const nuvem = s.exists() ? copia(s.data()) : null;
+    // alterações deste aparelho ainda não confirmadas: reaplica por cima da versão nova da nuvem
+    const locais = carregado ? diferencas(BASE, CU) : [];
+    BASE = nuvem;
+    CU = normCU(nuvem ? aplicar(copia(nuvem), locais) : null);
     carregado = true;
-    if (CU._migrou) { delete CU._migrou; salvar(); }
+    const migrou = CU._migrou;
+    delete CU._migrou;
+    if (migrou || diferencas(BASE, CU).length) salvar();
+    statusSalvo();
     if (aberto && !digitando()) render();
   }, ctx.tratarErro));
   gravarAutomatico();
@@ -377,9 +444,9 @@ function formPin(primeiro) {
     if (!/^\d{4,8}$/.test(p1)) { $('#cu-pin-erro').textContent = 'Use de 4 a 8 números.'; return; }
     if (p1 !== p2) { $('#cu-pin-erro').textContent = 'Os dois PINs não são iguais.'; return; }
     CU.pinHash = await hashPin(p1);
-    ultimaEdicao = Date.now();
     try {
-      await setDoc(refFichas(), CU);
+      await salvarAgora();
+      if (falhou) throw new Error('não salvou');
       ctx.fecharModal();
       U.toast(primeiro ? 'PIN criado ✓' : 'PIN alterado ✓');
       if (primeiro) entrar();
@@ -418,12 +485,13 @@ function render() {
   if (TAB !== 'balanco') unsubBal.splice(0).forEach((u) => u());
   const el = $('#v-custos');
   el.innerHTML = `
-    <div class="view-topo"><h1>🔒 Custos e lucro</h1>
+    <div class="view-topo"><h1>🔒 Custos e lucro</h1><span id="cu-salvo" class="cu-salvo"></span>
       <button type="button" class="btn btn-sec btn-peq" data-cu="sair">↩️ Sair da área</button></div>
     <div class="subabas">${ABAS.map(([k, i, t]) => `<button type="button" data-cu="tab" data-v="${k}" class="${TAB === k ? 'ativo' : ''}">${i} ${t}</button>`).join('')}</div>
     ${TAB === 'fichas' ? `<div class="subabas cu-fichas">${FICHAS.map(([k, t]) => `<button type="button" data-cu="ficha" data-v="${k}" class="${FICHA === k ? 'ativo' : ''}">${t}</button>`).join('')}</div>` : ''}
     <div id="cu-corpo">${corpo()}</div>`;
   if (TAB === 'balanco') ouvirBalanco();
+  statusSalvo();
 }
 function corpo() {
   if (TAB === 'lucro') return viewLucro();
@@ -1127,9 +1195,9 @@ async function importarAntigo(arquivo) {
   Object.assign(CU.bordas, novos.bordas);
   Object.assign(CU.simples, novos.simples);
   migrar(CU);
-  ultimaEdicao = Date.now();
   try {
-    await setDoc(refFichas(), CU);
+    await salvarAgora();
+    if (falhou) throw new Error('não salvou');
     U.toast('Fichas importadas ✓');
     if (res.fora.length) alert(`Importado! Itens que ficaram de fora (nome diferente no cardápio novo):\n\n${res.fora.join('\n')}\n\nVocê pode renomear no Cardápio e importar de novo, ou preencher à mão.`);
   } catch (e) { ctx.tratarErro(e); U.toast('Erro ao salvar.', 'erro-t'); }

@@ -93,6 +93,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
   - Versão dos arquivos `?v=26`; com o bloqueio de bairro fora da lista, `?v=27`.
   - Com bairros cadastrados, a tela de entrega pede **só Bairro → Número da casa → Ponto de referência** (sem Rua e Complemento). Versão dos arquivos `?v=28`.
 - **Novidade de 27/11/2026: 🏪 Pedido no balcão.** Botão no painel para você mesmo registrar o pedido de quem chegou na porta ou ligou. Versão dos arquivos `?v=29`.
+- **Correção de 27/11/2026 (custos que "não salvavam"):** com o painel aberto em dois lugares ao mesmo tempo (celular e notebook, ou duas abas), um aparelho podia gravar a ficha inteira por cima e apagar o que o outro tinha salvo (foi o que sumiu com o custo das bebidas e o preço da Calabresa/Frango). Agora cada aparelho grava **só o que mudou** e junta o que vem do outro. No topo da área de custos aparece **✓ Tudo salvo**, **💾 Salvando…** ou **⚠️ Não salvou — tentando de novo…**. Versão dos arquivos `?v=30`.
 - **Teste de 25/11/2026 (desfeito):** a `?v=23` mostrava a foto da bebida sempre inteira, com sobras brancas. O Eduardo não gostou, e a `?v=24` voltou ao jeito anterior: a foto preenche o quadro todo, como nas pizzas.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
@@ -270,6 +271,8 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
 
 Toque no cadeado discreto no topo do painel. Na primeira vez, você cria um **PIN de 4 a 8 números**; depois ele é pedido sempre.
 
+**Está salvo?** No topo da área de custos aparece **✓ Tudo salvo** (verde). Logo depois de digitar aparece **💾 Salvando…** por um instante. Se aparecer **⚠️ Não salvou — tentando de novo…** (vermelho), confira a internet: o painel tenta de novo sozinho e avisa antes de você fechar a página. Pode usar o celular e o notebook ao mesmo tempo: um não apaga o que o outro salvou.
+
 - **Balanço:** cada pedido que chega tem o custo **gravado sozinho** com os preços das fichas naquele momento. Mostra o dinheiro do custo (para repor), o dinheiro do lucro e as taxas de entrega à parte, pedido por pedido, com cada cliente numa cor. Use ◀ ▶ para outros dias. Se mudar as fichas, toque em **Recalcular este dia**.
 - **Fichas:**
   - Massa: o custo de 1 disco.
@@ -351,5 +354,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=29` → `?v=30` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=30` → `?v=31` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

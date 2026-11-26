@@ -24,7 +24,7 @@ export PLAYWRIGHT=/caminho/para/node_modules/playwright
 
 ## Rodar
 ```bash
-bash testes/rodar.sh original custos v4-novas grupos apagar fotos tempo som pronto nota ovo bebida ajuste bairros balcao
+bash testes/rodar.sh original custos v4-novas grupos apagar fotos tempo som pronto nota ovo bebida ajuste bairros balcao sincronia
 ```
 
 Cada bateria roda com o banco limpo e mostra `RESULTADO: N ok, 0 falha(s)`. As falhas aparecem com ✘. Detalhes ficam em `testes/out-<bateria>.txt`, e as capturas de tela em `testes/shots-*/`.
@@ -43,6 +43,7 @@ Cada bateria roda com o banco limpo e mostra `RESULTADO: N ok, 0 falha(s)`. As f
 | bebida | bebidas dentro da tela da pizza, botão "Adicionar e finalizar", mensagem e pedido gravado |
 | ovo | quantidade própria na metade e no terço (ex.: ovos da Portuguesa 3 / 2 / 1); custo do pedido, gramas |
 | bairros | bairros de entrega com taxa automática, "bairro fora da lista" bloqueia a entrega, horário de Salvador, "Fechar agora" até a próxima abertura |
+| sincronia | custos salvos com o painel aberto em dois aparelhos (um não apaga o do outro), indicador "✓ Tudo salvo", sem internet |
 | balcao | 🏪 pedido no balcão: só com o login do painel, cliente com/sem WhatsApp, cadastro, fora do horário |
 | ajuste | 💸 Ajustar valor do pedido: pedido original intacto, faturamento e Balanço com o valor recebido |
 | nota | lista única de ingredientes, nota fiscal real de 15/11/2026, ml/L, histórico, lucro mínimo, bebidas |

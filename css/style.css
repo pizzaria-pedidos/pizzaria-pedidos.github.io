@@ -806,3 +806,9 @@ body.modo-balcao #btn-trocar, body.modo-balcao [data-aba="pedidos"] { display: n
 .tag-balcao { background: #fff0e6; color: #b8460b; margin-left: 8px; }
 #tela-sucesso #bc-novo, #tela-sucesso #bc-painel { margin-top: 10px; }
 body.modo-balcao nav.abas { display: none !important; }
+
+/* custos: indicador de salvamento */
+.cu-salvo { font-size: 0.8rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; margin-left: auto; margin-right: 8px; white-space: nowrap; }
+.cu-salvo.ok { background: #e6f4ea; color: #1e7b34; }
+.cu-salvo.salvando { background: var(--superficie-2); color: var(--texto-2); }
+.cu-salvo.erro { background: #fde8e8; color: #b42318; }
