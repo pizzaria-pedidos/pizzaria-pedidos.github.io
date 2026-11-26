@@ -7,7 +7,7 @@ const { chromium, devices } = createRequire(import.meta.url)(process.env.PLAYWRI
 const DIR = path.dirname(new URL(import.meta.url).pathname);
 const SITE = 'http://127.0.0.1:5500';
 const FB = path.join(DIR, 'node_modules/firebase');
-const V = 'v=30';
+const V = 'v=31';
 const shots = path.join(DIR, 'shots-balcao');
 fs.mkdirSync(shots, { recursive: true });
 let ok = 0, falhas = 0;
@@ -165,6 +165,12 @@ await adm.waitForTimeout(800);
 await adm.locator('.pedido-card', { hasText: 'Seu Zé' }).locator('[data-avancar]').click();
 await adm.waitForTimeout(800);
 check((await pedidos()).find((p) => p.clienteNome === 'Seu Zé').status === 'concluido', 'sem WhatsApp: "✅ Pedido pronto" → "🏁 Entregue ao cliente" conclui');
+await adm.locator('.pedido-card', { hasText: 'Seu Zé' }).locator('.pc-mais summary').click();
+await adm.locator('.pedido-card', { hasText: 'Seu Zé' }).locator('[data-excluir]').click();
+await adm.click('#ex-ok');
+await toastTem(adm, 'excluído');
+await adm.waitForTimeout(800);
+check(!(await pedidos()).some((p) => p.clienteNome === 'Seu Zé'), 'pedido de balcão sem WhatsApp: "🗑️ Excluir pedido" apaga');
 
 console.log('\n7) Fora do horário: avisa, mas deixa registrar');
 await adm.evaluate(async (V) => {

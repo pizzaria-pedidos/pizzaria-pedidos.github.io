@@ -56,7 +56,7 @@ CONTEXTO.md       este arquivo
 testes/           testes automáticos (emulador Firebase + Playwright). Veja testes/LEIA-ME.md
 ```
 
-⚠️ **Versão dos arquivos: hoje é `?v=30`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=31`) **em todos os lugares**. Depois rode `python3 testes/versao.py 31` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
+⚠️ **Versão dos arquivos: hoje é `?v=31`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=32`) **em todos os lugares**. Depois rode `python3 testes/versao.py 32` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
 
 ## 4. Dados no Firestore
 
@@ -104,6 +104,7 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
   - **"Fechar agora" vale só até a próxima abertura** do horário (`fechadoAte`, calculado por `U.fechadoAteAgora`). Ex.: fechou às 20h → abre sozinha amanhã às 18h; fechou às 17h (antes de abrir) → hoje não abre, amanhã às 18h abre. "Toque para reabrir" apaga a data. Um `fechadoManual: true` **sem** `fechadoAte` (versões antigas) continua fechado até reabrir no painel;
   - "Preparo médio" do dia.
 - **Cardápio:** CRUD; **preço por grupo** de sabores; fotos da **galeria** (o painel reduz o tamanho sozinho).
+- **🗑️ Excluir pedido** (27/11/2026): em "⋯ Mais opções" do card (`confirmarExcluirPedido` em `js/admin.js`). Apaga `pedidos/{id}` e `custosPedidos/{id}`; se o cliente existe em `clientes`, tira o id de `ultimosPedidos` e, se o pedido não estava cancelado, desconta `totalPedidos` e `totalGasto`. Criado para apagar o pedido de teste "Chacal" (balcão, sem WhatsApp, 26/11), que o Eduardo vai excluir sozinho.
 - **💸 Ajustar valor** (26/11/2026): em "⋯ Mais opções" do card do pedido. Grava `pedidos/{id}.ajuste` sem mexer nos itens e no total. O card mostra o total riscado e "💸 Recebido"; o faturamento e o Balanço usam o recebido. Criado para o pedido do Ramon de 25/11 (2 pizzas de R$ 42; uma saiu por R$ 23,76 → recebido R$ 65,76). O **Eduardo vai aplicar sozinho** nesse pedido.
 - **🏪 Pedido no balcão** (27/11/2026): botão `#btn-balcao` na tela Pedidos abre `index.html?balcao=1` (nova aba). O site do cliente, com `BALCAO`, só libera se houver login do Firebase Auth **e** conseguir listar `clientes` (só o admin consegue); senão mostra "só funciona no aparelho logado no painel". Tela `#tela-balcao`: WhatsApp (opcional; se já cadastrado, preenche o nome) + nome. Faixa laranja `#faixa-balcao`. Carrinho/checkout em chaves separadas (`pz_carrinho_balcao`, `pz_checkout_balcao`); não toca em `pz_cliente`. Começa em retirada; o botão é "✅ Registrar pedido": grava pela mesma transação (`registrarPedido`) com `origem: 'balcao'`, status **novo** (toca o som no painel, decisão do Eduardo) e **não** abre o WhatsApp da pizzaria; a tela de sucesso tem "📲 Mandar resumo para o cliente" (WhatsApp do cliente) e "🏪 Novo pedido no balcão". **Fora do horário: deixa registrar com aviso** (decisão dele); o cliente comum continua bloqueado. **Sem número:** `clienteTel: ''`, sem cadastro em `clientes` (aceito pelo Eduardo); no painel aparece "(sem WhatsApp)", sem links de WhatsApp, e o botão depois de pronto é "🏁 Entregue ao cliente". As regras não mudaram: o admin já pode criar pedidos e clientes.
 - **Clientes:** tabela ordenável; etiquetas Novo, Recorrente, VIP e Sumido; histórico; **apagar cliente** (com opção de apagar os pedidos).
@@ -176,4 +177,4 @@ Veja `testes/LEIA-ME.md`. Resumo:
 - o site é servido localmente;
 - o Playwright faz o papel do cliente e do admin.
 
-São 16 baterias e ~385 verificações. Todas passavam na versão `?v=30`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.
+São 16 baterias e ~385 verificações. Todas passavam na versão `?v=31`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.

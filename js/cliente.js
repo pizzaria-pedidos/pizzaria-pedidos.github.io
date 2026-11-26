@@ -4,8 +4,8 @@
 import {
   app, db, configurado, doc, getDoc, getDocs, setDoc, updateDoc, onSnapshot, collection, query, limit,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=30';
-import * as U from './utils.js?v=30';
+} from './firebase-config.js?v=31';
+import * as U from './utils.js?v=31';
 
 const { esc, fmtBRL } = U;
 // 🏪 Modo balcão: o dono, logado no painel, faz o pedido pelo cliente que está na porta (ou no telefone).

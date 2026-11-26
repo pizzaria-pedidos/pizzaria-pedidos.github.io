@@ -7,7 +7,7 @@ const { chromium, devices } = createRequire(import.meta.url)(process.env.PLAYWRI
 const DIR = path.dirname(new URL(import.meta.url).pathname);
 const SITE = 'http://127.0.0.1:5500';
 const FB = path.join(DIR, 'node_modules/firebase');
-const V = 'v=30';
+const V = 'v=31';
 const shots = path.join(DIR, 'shots-ajuste');
 fs.mkdirSync(shots, { recursive: true });
 let ok = 0, falhas = 0;
@@ -142,6 +142,30 @@ await adm.waitForTimeout(800);
 [ped] = await pedidos();
 check(!ped.ajuste && ped.total === total, 'ajuste removido, pedido volta ao total original');
 check((await adm.textContent('#stats')).includes(br(total)), 'Faturamento volta ao total');
+
+console.log('\n5) 🗑️ Excluir pedido');
+const cliAntes = await adm.evaluate(async (V) => {
+  const m = await import(`/js/firebase-config.js?${V}`);
+  return (await m.getDoc(m.doc(m.db, 'clientes', '5571999998888'))).data();
+}, V);
+await adm.click('.pedido-card .pc-mais summary');
+check(await adm.isVisible('[data-excluir]'), '"🗑️ Excluir pedido" em "⋯ Mais opções"');
+await adm.click('[data-excluir]');
+await adm.waitForSelector('#ex-ok');
+check((await adm.textContent('#modal-corpo')).includes('não pode ser desfeito'), 'pede confirmação ("não pode ser desfeito")');
+await adm.click('#modal-rodape [data-fechar]');
+check((await pedidos()).length === 1, '"Voltar" não exclui');
+await adm.click('[data-excluir]');
+await adm.click('#ex-ok');
+await toastTem(adm, 'excluído');
+await adm.waitForTimeout(800);
+check((await pedidos()).length === 0, 'pedido excluído do banco');
+check(!(await adm.$('.pedido-card')) && (await adm.textContent('#stats')).replace(/\u00a0/g, ' ').includes('R$ 0,00'), 'sumiu da lista e do faturamento');
+const cliDepois = await adm.evaluate(async (V) => {
+  const m = await import(`/js/firebase-config.js?${V}`);
+  return (await m.getDoc(m.doc(m.db, 'clientes', '5571999998888'))).data();
+}, V);
+check(cliDepois.totalPedidos === cliAntes.totalPedidos - 1 && !(cliDepois.ultimosPedidos || []).includes(ped.id), `descontado do histórico do cliente (${cliAntes.totalPedidos} → ${cliDepois.totalPedidos})`);
 
 check(!erros.length, `sem erros de JavaScript ${erros.join(' | ')}`);
 console.log(`\nRESULTADO: ${ok} ok, ${falhas} falha(s)`);

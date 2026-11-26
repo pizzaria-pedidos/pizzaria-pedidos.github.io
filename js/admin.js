@@ -3,14 +3,14 @@
 // =====================================================================
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp, deleteField,
-} from './firebase-config.js?v=30';
+  onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp, deleteField, arrayRemove,
+} from './firebase-config.js?v=31';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=30';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=30';
+import * as U from './utils.js?v=31';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=31';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -419,6 +419,7 @@ function pedidoHTML(p, comAcoes = true) {
       <label class="campo"><span>Mudar status / cancelar</span><select data-status="${esc(p.id)}" aria-label="Mudar status">${opcoes}</select></label>
       <button type="button" class="btn btn-sec btn-peq" data-ajustar="${esc(p.id)}">💸 ${p.ajuste ? 'Mudar o ajuste de valor' : 'Ajustar valor'}</button>
       ${p.clienteTel ? `<a class="link" href="${esc(U.linkWhats(p.clienteTel))}" target="_blank" rel="noopener">Conversar no WhatsApp (sem mensagem)</a>` : ''}
+      <button type="button" class="link link-perigo" data-excluir="${esc(p.id)}">🗑️ Excluir pedido</button>
     </details>` : ''}
   </article>`;
 }
@@ -493,9 +494,48 @@ $('#lista-pedidos-admin').addEventListener('click', (e) => {
   if (inf) { mudarStatus(inf.dataset.informar, 'concluido', { informadoEm: serverTimestamp() }); return; }
   const aj = e.target.closest('[data-ajustar]');
   if (aj) { abrirAjuste(aj.dataset.ajustar); return; }
+  const ex = e.target.closest('[data-excluir]');
+  if (ex) { confirmarExcluirPedido(ex.dataset.excluir); return; }
   const b = e.target.closest('[data-avancar]');
   if (b) mudarStatus(b.dataset.avancar, b.dataset.para);
 });
+
+// ---------- 🗑️ Excluir pedido (pedidos de teste, lançados por engano) ----------
+// Apaga o pedido e o custo gravado dele; se o cliente tem cadastro, desconta das estatísticas dele.
+function confirmarExcluirPedido(id) {
+  const p = S.pedidos.find((x) => x.id === id);
+  if (!p) return;
+  abrirModal(`🗑️ Excluir pedido ${U.codigoPedido(p.id)}`, `
+    <p style="margin-bottom:12px">Excluir o pedido de <b>${esc(p.clienteNome)}</b> · ${U.fmtHoraMin(U.toDate(p.criadoEm))} · ${fmtBRL(p.total)}?</p>
+    <p class="cu-dica" style="margin-bottom:12px">Use para <b>pedido de teste</b> ou lançado por engano: ele some da lista, do faturamento e do Balanço${p.clienteTel ? ' e é descontado do histórico do cliente' : ''}. Para pedido de verdade que não foi feito, prefira <b>Cancelado</b> (fica registrado).</p>
+    <p class="erro" id="ex-erro"></p>
+    <p style="font-weight:800;color:var(--erro)">Isso não pode ser desfeito.</p>`,
+  `<button type="button" class="btn btn-sec" data-fechar>Voltar</button>
+   <button type="button" class="btn btn-perigo" id="ex-ok">🗑️ Excluir definitivamente</button>`);
+  $('#ex-ok').addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    e.target.textContent = 'Excluindo…';
+    const b = writeBatch(db);
+    b.delete(doc(db, 'pedidos', p.id));
+    b.delete(doc(db, 'custosPedidos', p.id));
+    // cliente cadastrado: tira o pedido das contas dele (pedido cancelado já tinha sido descontado)
+    if (p.clienteTel && S.clientes.some((c) => c.id === p.clienteTel)) {
+      const upd = { ultimosPedidos: arrayRemove(p.id) };
+      if (p.status !== 'cancelado') Object.assign(upd, { totalPedidos: increment(-1), totalGasto: increment(-(p.total || 0)) });
+      b.update(doc(db, 'clientes', p.clienteTel), upd);
+    }
+    try {
+      await b.commit();
+      fecharModal();
+      U.toast(`Pedido ${U.codigoPedido(p.id)} excluído`);
+    } catch (err) {
+      tratarErro(err);
+      $('#ex-erro').textContent = 'Não foi possível excluir. Confira a internet e tente de novo.';
+      e.target.disabled = false;
+      e.target.textContent = '🗑️ Excluir definitivamente';
+    }
+  });
+}
 
 // ---------- 💸 Ajustar valor (desconto, cortesia, divergência…) ----------
 // O pedido original (itens e total) fica intacto; o ajuste é guardado à parte em pedidos/{id}.ajuste
