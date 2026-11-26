@@ -73,7 +73,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
   - ✕ no histórico para apagar um preço lançado errado (se for o último, o preço volta ao anterior).
   - Versão dos arquivos `?v=18`.
 - **Bebidas por marca (18/11/2026):** cadastre no Cardápio uma bebida para cada marca (ex.: "Pepsi 1L", "Antártica 1L", "Coca-Cola 1L"). Na nota, cada marca vai para a sua bebida, com o seu custo. Grafias diferentes são entendidas: Antarctica = Antártica, Coca-Cola = Coca Cola = Cocacola. O tamanho também precisa bater (1L ≠ 2L). Versão dos arquivos `?v=19`.
-- **Novidade de 25/11/2026: ingrediente de quantidade fixa (ex.: ovo).**
+- **Novidade de 25/11/2026: ingrediente de quantidade fixa (ex.: ovo).** *(Substituída em 26/11 pela "quantidade diferente na metade e no terço"; veja abaixo.)*
   - Nas fichas de Sabores, Base e Bordas, cada ingrediente tem a caixinha **🥚 Quantidade fixa**. Marcada, ele vai **igual na inteira, na ½ e no ⅓** e **em todo tamanho** (1 ovo é sempre 1 ovo).
   - Ao escolher um ingrediente chamado "Ovo", a caixinha já vem marcada.
   - Vale no custo de cada pedido (Balanço), no Lucro, nas Gramas e no impacto da nota fiscal.
@@ -83,6 +83,10 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
   - O botão já soma pizza + bebidas. Novo botão **Adicionar e finalizar ➜**, que coloca tudo no carrinho e abre direto a tela de finalizar.
   - Versão dos arquivos `?v=21`.
   - Ajuste: o título da seção ficou só "🥤 Bebida", sem frase embaixo. Versão dos arquivos `?v=22`.
+- **Novidades de 26/11/2026:**
+  - **💸 Ajustar valor do pedido**: em "⋯ Mais opções" do pedido, informe o valor que você realmente recebeu e o motivo. O pedido continua guardado como foi feito, e o faturamento e o Balanço passam a usar o valor recebido.
+  - **Quantidade diferente na metade e no terço**: substitui a caixinha "Quantidade fixa". Em Fichas → Sabores, cada ingrediente tem o botão **✏️ Quantidade diferente na metade e no terço** (ex.: Portuguesa com 3 ovos na inteira, 2 na metade e 1 no terço).
+  - Versão dos arquivos `?v=25`.
 - **Teste de 25/11/2026 (desfeito):** a `?v=23` mostrava a foto da bebida sempre inteira, com sobras brancas. O Eduardo não gostou, e a `?v=24` voltou ao jeito anterior: a foto preenche o quadro todo, como nas pizzas.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
@@ -184,6 +188,15 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
 
 ## Como usar no dia a dia
 
+- **💸 Ajustar valor (desconto, cortesia, divergência):** quando o cliente pagou um valor diferente do pedido:
+  1. Em **Pedidos**, escolha o **dia** do pedido no campo de data.
+  2. No card do pedido, toque em **⋯ Mais opções → 💸 Ajustar valor**.
+  3. Em **Valor que você recebeu**, digite o valor (ex.: `65,76`). Embaixo aparece o desconto (ex.: "Desconto de R$ 18,24").
+  4. Em **Motivo**, escreva o porquê (opcional, ex.: "divergência no pedido") e toque em **Salvar ajuste**.
+  - O card mostra o total original riscado e **💸 Recebido R$ 65,76**. Os itens e o total do pedido **não mudam**.
+  - O **Faturamento** do dia e o **Balanço** (🔒) usam o valor recebido: a venda e o lucro caem, e o custo continua o mesmo, porque os ingredientes foram usados.
+  - Errou? Toque de novo em **💸 Mudar o ajuste de valor** e corrija, ou toque em **Tirar ajuste**.
+  - O cadastro do cliente (quanto ele já gastou) não muda.
 - **Pedidos:** deixe o painel aberto (PC ou celular). Quando chega um pedido novo, toca um alerta. No primeiro acesso, toque na faixa vermelha "ativar o som", porque o navegador só libera áudio depois de um toque. Avance o status com o botão principal. Cancelar um pedido desconta ele das estatísticas do cliente.
 - **Acabou um ingrediente:** em **Cardápio → Sabores**, busque, por exemplo, "catupiry" e toque em **Desativar todos**. Para um item só, use a chavinha. O site do cliente atualiza na hora, sem recarregar.
 - **Preço por grupo (Tradicionais / Especiais):** em **Cardápio → Sabores**, o quadro **"💰 Preço por grupo"** tem um preço para cada grupo. Ex.: Tradicionais R$ 35 e Especiais R$ 40. Toque em **Salvar e aplicar** e o preço vai para **todos** os sabores do grupo de uma vez.
@@ -237,7 +250,14 @@ Toque no cadeado discreto no topo do painel. Na primeira vez, você cria um **PI
 - **Lucro:** custo, venda e lucro de cada sabor, em cada tamanho, e também das bordas, adicionais e bebidas.
 - **Gramas:** quanto vai de cada ingrediente na pizza inteira, na metade (½) e no terço (⅓), por tamanho.
 
-**🥚 Quantidade fixa (ex.: ovo):** em Fichas → Sabores (e também na Base e nas Bordas), marque a caixinha **Quantidade fixa** no ingrediente que vai sempre na mesma quantidade. Exemplo: o ovo da Calabresa é **1 unidade na inteira, 1 na meia (½) e 1 no terço (⅓)**, e também 1 na Média. Sem marcar, o sistema divide o ingrediente na meia e no terço e diminui nos tamanhos menores, como acontece com o queijo. Quando você escolhe um ingrediente chamado "Ovo", a caixinha já vem marcada. Numa pizza meia Calabresa e meia Portuguesa, com ovo nas duas, entram 2 ovos (1 em cada metade).
+**✏️ Quantidade diferente na metade e no terço (ex.: ovos):** normalmente o sistema divide o recheio sozinho: se a inteira leva 100 g, a metade leva 50 g e o terço 33 g. Para um ingrediente que não divide certinho, como o ovo:
+1. Em **🔒 → Fichas → Sabores**, escolha o sabor (ex.: Portuguesa).
+2. No ingrediente (ex.: Ovo), preencha **"Vai na pizza inteira"** (ex.: 3).
+3. Toque em **✏️ Quantidade diferente na metade e no terço**.
+4. Preencha **Na metade (½)** (ex.: 2) e **No terço (⅓)** (ex.: 1). Em cinza aparece a conta automática, só como dica. Campo em branco = divide sozinho.
+5. Pronto: o custo de cada pedido, a ficha ("Nas frações") e a tabela de **Gramas** passam a usar essas quantidades. Para desfazer, toque em **↩︎ voltar a dividir sozinho**.
+
+Só aparece em Sabores, porque a base e a borda vão inteiras em toda pizza. Nos outros tamanhos, como a Média, tudo segue a proporção definida em "Base e tamanhos".
 
 **Tamanhos:** as fichas valem para a pizza de **referência** (hoje, a Grande, que é a única ligada). Tamanhos **desligados** no cardápio não aparecem na área de custos. Se um dia ligar outro tamanho, ele aparece sozinho em *Fichas → Base e tamanhos*, onde você diz quanto ele usa da Grande (ex.: "a Média usa 70%"). Nas pizzas de 2 ou 3 sabores, o recheio é dividido e a base entra inteira.
 
@@ -301,5 +321,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=24` → `?v=25` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=25` → `?v=26` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

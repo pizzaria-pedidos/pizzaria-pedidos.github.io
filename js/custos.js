@@ -9,9 +9,9 @@
 // =====================================================================
 import {
   db, doc, setDoc, onSnapshot, collection, query, where, writeBatch, Timestamp, serverTimestamp,
-} from './firebase-config.js?v=24';
-import * as U from './utils.js?v=24';
-import * as N from './notas.js?v=24';
+} from './firebase-config.js?v=25';
+import * as U from './utils.js?v=25';
+import * as N from './notas.js?v=25';
 
 const { esc, fmtBRL: brl } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -52,6 +52,10 @@ function normCU(d) {
   c.apelidos = c.apelidos || {};          // o que a nota escreve → ingrediente (aprendido na conferência)
   c.lucroMinimo = c.lucroMinimo ?? '';
   if (migrar(c)) c._migrou = true;
+  // a antiga caixinha "quantidade fixa" (v20–v24) vira quantidade própria na ½ e no ⅓
+  const todas = [c.massa.itens, c.base.itens, ...['sabores', 'bordas', 'adicionais'].flatMap((g) => Object.values(c[g] || {}).map((x) => x.itens || []))];
+  Object.values(c.sabores).forEach((x) => (x.itens || []).forEach((it) => { if (it.fixo) { it.meia = it.usa; it.terco = it.usa; } }));
+  todas.forEach((L) => L.forEach((it) => { if ('fixo' in it) { delete it.fixo; c._migrou = true; } }));
   return c;
 }
 function hojeISO() {
@@ -133,10 +137,20 @@ function novoIngrediente(nome, base = 'kg', preco = 0) {
 }
 const listaIngredientes = () => Object.values(CU.ingredientes).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 const somaItens = (lista) => (lista || []).reduce((s, it) => s + custoItem(it), 0);
-/** Item de quantidade fixa (ex.: ovo): vai igual em todo tamanho e não divide na ½ e no ⅓ */
-const somaVar = (lista) => (lista || []).reduce((s, it) => s + (it.fixo ? 0 : custoItem(it)), 0);
-const somaFix = (lista) => (lista || []).reduce((s, it) => s + (it.fixo ? custoItem(it) : 0), 0);
-const ehOvo = (id) => /^ovos?\b/.test(U.norm(CU.ingredientes[id]?.nome || '').trim());
+/**
+ * Quanto vai de um ingrediente do recheio quando o sabor ocupa 1/n da pizza.
+ * Normalmente divide (½ = metade, ⅓ = um terço). Se o Eduardo preencheu uma quantidade
+ * própria para a metade (it.meia) ou o terço (it.terco) — ex.: Portuguesa: 3 ovos na
+ * inteira, 2 na metade, 1 no terço — vale o que ele preencheu.
+ */
+const temFrac = (it) => it.meia !== undefined || it.terco !== undefined;
+const preenchido = (v) => v !== undefined && String(v).trim() !== '';
+function qtdFrac(it, n) {
+  if (n === 2 && preenchido(it.meia)) return num(it.meia);
+  if (n === 3 && preenchido(it.terco)) return num(it.terco);
+  return num(it.usa) / (n || 1);
+}
+const recheioFrac = (id, n = 1) => (CU.sabores[id]?.itens || []).reduce((s, it) => s + custoItem({ ...it, usa: qtdFrac(it, n) }), 0);
 const custoReceita = () => somaItens(CU.massa.itens);
 const custoDisco = () => (num(CU.massa.rende) > 0 ? custoReceita() / num(CU.massa.rende) : 0);
 /** base de toda pizza (tamanho de referência) = 1 disco + molho + mussarela… */
@@ -144,10 +158,10 @@ const custoBase = () => custoDisco() + somaItens(CU.base.itens);
 const recheioCusto = (id) => somaItens(CU.sabores[id]?.itens);
 const bordaCusto = (id) => somaItens(CU.bordas[id]?.itens);
 const adicCusto = (id) => somaItens(CU.adicionais[id]?.itens);
-/** Custos já ajustados ao tamanho t (e à fração do sabor): a parte fixa não muda */
-const baseT = (t) => (custoDisco() + somaVar(CU.base.itens)) * fator(t) + somaFix(CU.base.itens);
-const recheioT = (id, t, frac = 1) => somaVar(CU.sabores[id]?.itens) * fator(t) * frac + somaFix(CU.sabores[id]?.itens);
-const bordaT = (id, t) => somaVar(CU.bordas[id]?.itens) * fator(t) + somaFix(CU.bordas[id]?.itens);
+/** Custos ajustados ao tamanho t; o recheio, à fração do sabor (n = 1 inteira, 2 meia, 3 terço) */
+const baseT = (t) => custoBase() * fator(t);
+const recheioT = (id, t, n = 1) => recheioFrac(id, n) * fator(t);
+const bordaT = (id, t) => bordaCusto(id) * fator(t);
 const pizzaT = (id, t) => baseT(t) + recheioT(id, t);
 const temItens = (grupo, id) => (CU[grupo][id]?.itens || []).some((it) => custoItem(it) > 0);
 function simplesCustoUn(id) {
@@ -191,7 +205,7 @@ export function calcPedido(p) {
     if (it.tipo === 'pizza') {
       const sabs = it.sabores || [];
       const n = sabs.length || 1;
-      const rech = sabs.reduce((s, x) => s + recheioT(x.id, it.tamanho, 1 / n), 0);
+      const rech = sabs.reduce((s, x) => s + recheioT(x.id, it.tamanho, n), 0);
       const bordaV = it.borda?.preco || 0;
       const adicV = (it.adicionais || []).reduce((s, a) => s + (a.preco || 0) * (a.qtd || 0), 0);
       const falta = sabs.filter((x) => !(recheioCusto(x.id) > 0)).map((x) => x.nome);
@@ -431,24 +445,28 @@ function listaAtual() {
 function opcoesIng(sel) {
   return `<option value="">Escolha o ingrediente…</option>${listaIngredientes().map((i) => `<option value="${esc(i.id)}" ${i.id === sel ? 'selected' : ''}>${esc(i.nome)}</option>`).join('')}<option value="__novo">➕ Novo ingrediente…</option>`;
 }
-const TEXTO_FIXO = {
-  sabores: '🥚 <b>Quantidade fixa</b>: vai igual na inteira, na ½ e no ⅓, em todo tamanho (ex.: 1 ovo)',
-  base: '🥚 <b>Quantidade fixa</b>: vai igual em todo tamanho (ex.: 1 ovo)',
-  bordas: '🥚 <b>Quantidade fixa</b>: vai igual em todo tamanho (ex.: 1 ovo)',
-};
+const fmtIn = (v) => String(Math.round(v * 10) / 10).replace('.', ',');
+/** Linha extra só nos Sabores: quantidade própria na metade e no terço (ex.: ovos da Portuguesa) */
+function fracHTML(it, i) {
+  if (!temFrac(it)) return `<div class="m-fx"><button type="button" class="link" data-cu="frAbrir" data-i="${i}">✏️ Quantidade diferente na metade e no terço</button></div>`;
+  const u = unUso(it);
+  const campo = (f, rot, auto) => `<label class="m-frc"><span>${rot}</span><div class="inl"><input class="input" inputmode="decimal" data-ci="m" data-i="${i}" data-f="${f}" value="${esc(it[f] ?? '')}" placeholder="${fmtIn(auto)}"><span class="u">${u}</span></div></label>`;
+  return `<div class="m-fx m-fr">${campo('meia', 'Na metade (½)', num(it.usa) / 2)}${campo('terco', 'No terço (⅓)', num(it.usa) / 3)}
+    <button type="button" class="link link-discreto" data-cu="frTirar" data-i="${i}">↩︎ voltar a dividir sozinho</button></div>`;
+}
 function tabelaItens(lista, rotuloUso) {
-  const textoFixo = TEXTO_FIXO[FICHA] || '';
+  const comFrac = FICHA === 'sabores';
   let h = `<div class="cartao"><div class="mrow ming head"><span>Ingrediente <small>(o preço vem de 🧾 Ingredientes)</small></span><span>${rotuloUso}</span><span class="num">Custo</span><span></span></div>`;
   if (!lista.length) h += '<p class="vazio" style="padding:16px">Nenhum ingrediente. Toque em “+ Ingrediente”.</p>';
   lista.forEach((it, i) => {
     const ing = ingDe(it);
-    h += `<div class="mrow ming${textoFixo ? ' fx' : ''}">
+    h += `<div class="mrow ming${comFrac ? ' fx' : ''}">
       <label class="m-nm"><span>Ingrediente</span><select class="input" data-ci="ing" data-i="${i}">${opcoesIng(it.ing)}</select>
         <small class="m-preco">${ing ? (num(ing.preco) > 0 ? precoTexto(ing) : '⚠️ sem preço — preencha em 🧾 Ingredientes') : ''}</small></label>
       <label class="m-us"><span>${rotuloUso}</span><div class="inl"><input class="input" inputmode="decimal" data-ci="m" data-i="${i}" data-f="usa" value="${esc(it.usa)}" placeholder="0"><span class="u" data-un="${i}">${unUso(it)}</span></div></label>
       <div class="m-ct" data-calc="${i}">${brl(custoItem(it))}</div>
       <button type="button" class="m-x btn-icone" data-cu="mDel" data-i="${i}" aria-label="Remover ingrediente">✕</button>
-      ${textoFixo ? `<label class="m-fx"><input type="checkbox" data-ci="fixo" data-i="${i}" ${it.fixo ? 'checked' : ''}><span>${textoFixo}</span></label>` : ''}
+      ${comFrac ? fracHTML(it, i) : ''}
     </div>`;
   });
   return `${h}<button type="button" class="btn btn-sec btn-peq" data-cu="mAdd" style="margin-top:10px">+ Ingrediente</button></div>`;
@@ -533,9 +551,9 @@ function resSabor() {
     ${destaque(`Custo da <b>pizza inteira</b>${ref ? ` ${esc(ref)}` : ''}`, brl(base + rech))}
     ${linhasTam ? `<div class="tbl"><table class="res"><tr><th>Tamanho</th><th>Custo</th><th>Venda</th><th>Lucro</th></tr>${linhasTam}</table></div>` : ''}
   </div>
-  <div class="cartao"><b>Nas frações</b> <small style="color:var(--texto-2)">(o recheio é dividido, a base fica inteira${somaFix(CU.sabores[SABSEL]?.itens) > 0 ? '; o que tem quantidade fixa, como o ovo, vai inteiro' : ''})</small>
-    ${linhaRes(`Metade (½) de ${esc(sab.nome)}`, brl(recheioT(SABSEL, ref, 1 / 2)))}
-    ${linhaRes(`Um terço (⅓) de ${esc(sab.nome)}`, brl(recheioT(SABSEL, ref, 1 / 3)))}</div>`;
+  <div class="cartao"><b>Nas frações</b> <small style="color:var(--texto-2)">(o recheio é dividido, a base fica inteira${(CU.sabores[SABSEL]?.itens || []).some(temFrac) ? '; os ingredientes com quantidade própria usam o que você preencheu' : ''})</small>
+    ${linhaRes(`Metade (½) de ${esc(sab.nome)}`, brl(recheioT(SABSEL, ref, 2)))}
+    ${linhaRes(`Um terço (⅓) de ${esc(sab.nome)}`, brl(recheioT(SABSEL, ref, 3)))}</div>`;
 }
 
 // ---------- Bordas ----------
@@ -971,23 +989,23 @@ function viewGramas() {
   const f = fator(GRAMTAM);
   const B = CU.base.itens.filter((it) => num(it.usa) > 0);
   let h = `<h2 class="cu-h2">Tabela de gramas</h2>
-  ${p('Quanto vai de cada coisa. A base é igual em toda pizza; o recheio divide na metade e no terço. O que tem <b>quantidade fixa</b> (ex.: ovo) vai igual na inteira, na ½ e no ⅓.')}
+  ${p('Quanto vai de cada coisa. A base é igual em toda pizza; o recheio divide na metade e no terço, menos os ingredientes em que você preencheu uma quantidade própria para a ½ e o ⅓ (ex.: ovos).')}
   ${ts.length > 1 ? `<div class="chips">${ts.map((t) => `<button type="button" class="chip ${t === GRAMTAM ? 'on' : ''}" data-cu="gramTam" data-v="${esc(t)}">Pizza ${esc(t)}</button>`).join('')}</div>` : ''}
   ${fatorDefinido(GRAMTAM) ? '' : `<div class="cu-aviso">⚠️ A proporção da pizza ${esc(GRAMTAM)} ainda não foi definida (Fichas → Base e tamanhos). Mostrando igual à ${esc(tamRef())}.</div>`}
   <div class="cartao"><b>Toda pizza${GRAMTAM ? ` ${esc(GRAMTAM)}` : ''} (qualquer sabor e fração)</b>
     <div class="tbl"><table class="res"><tr><th>Item</th><th>Quantidade</th></tr>
-    <tr><td>Disco de massa</td><td>1 un</td></tr>${B.map((it) => `<tr><td>${esc(nomeItem(it))}</td><td>${fmtQ(num(it.usa) * (it.fixo ? 1 : f), unUso(it))}</td></tr>`).join('')}</table></div></div>`;
+    <tr><td>Disco de massa</td><td>1 un</td></tr>${B.map((it) => `<tr><td>${esc(nomeItem(it))}</td><td>${fmtQ(num(it.usa) * f, unUso(it))}</td></tr>`).join('')}</table></div></div>`;
   const sabs = ctx.S.sabores.filter((s) => (CU.sabores[s.id]?.itens || []).some((it) => num(it.usa) > 0));
   sabs.forEach((s) => {
     const its = CU.sabores[s.id].itens.filter((it) => num(it.usa) > 0);
     h += `<div class="cartao"><b>${esc(s.nome)}</b><div class="tbl"><table class="res"><tr><th>Recheio</th><th>Inteira</th><th>Metade ½</th><th>Terço ⅓</th></tr>
-      ${its.map((it) => { const u = unUso(it); if (it.fixo) { const q = fmtQ(num(it.usa), u); return `<tr><td>${esc(nomeItem(it))} <small>(fixo)</small></td><td><b>${q}</b></td><td>${q}</td><td>${q}</td></tr>`; } const q = num(it.usa) * f; return `<tr><td>${esc(nomeItem(it))}</td><td><b>${fmtQ(q, u)}</b></td><td>${fmtQ(q / 2, u)}</td><td>${fmtQ(q / 3, u)}</td></tr>`; }).join('')}
+      ${its.map((it) => { const u = unUso(it); return `<tr><td>${esc(nomeItem(it))}</td><td><b>${fmtQ(qtdFrac(it, 1) * f, u)}</b></td><td>${fmtQ(qtdFrac(it, 2) * f, u)}</td><td>${fmtQ(qtdFrac(it, 3) * f, u)}</td></tr>`; }).join('')}
     </table></div></div>`;
   });
   const bors = ctx.S.bordas.filter((b) => (CU.bordas[b.id]?.itens || []).some((it) => num(it.usa) > 0));
   if (bors.length) {
     h += `<div class="cartao"><b>Bordas (por borda)</b><div class="tbl"><table class="res"><tr><th>Borda</th><th>Item</th><th>Quantidade</th></tr>
-      ${bors.map((b) => CU.bordas[b.id].itens.filter((it) => num(it.usa) > 0).map((it) => `<tr><td>${esc(b.nome)}</td><td>${esc(nomeItem(it))}</td><td>${fmtQ(num(it.usa) * (it.fixo ? 1 : f), unUso(it))}</td></tr>`).join('')).join('')}
+      ${bors.map((b) => CU.bordas[b.id].itens.filter((it) => num(it.usa) > 0).map((it) => `<tr><td>${esc(b.nome)}</td><td>${esc(nomeItem(it))}</td><td>${fmtQ(num(it.usa) * f, unUso(it))}</td></tr>`).join('')).join('')}
     </table></div></div>`;
   }
   const faltam = ctx.S.sabores.length - sabs.length;
@@ -1028,7 +1046,9 @@ function renderBalanco() {
   const calcs = ps.map((x) => {
     const c = BAL.salvos[x.id] || calcPedido(x);
     if (!BAL.salvos[x.id]) naHora++;
-    venda += c.venda; custo += c.custo; taxas += x.taxaEntrega || 0;
+    // 💸 ajuste de valor feito no painel: a venda cai (ou sobe), o custo continua o mesmo
+    const aj = U.descontoAjuste(x);
+    venda += c.venda - aj; custo += c.custo; taxas += x.taxaEntrega || 0;
     avisos += c.linhas.filter((l) => l.aviso).length;
     return c;
   });
@@ -1045,6 +1065,7 @@ function renderBalanco() {
     ${avisos ? `<div class="cu-aviso">⚠️ ${avisos} item(ns) estão sem ficha preenchida, então o custo está incompleto (o lucro aparece maior do que é). Preencha nas Fichas e depois toque em “Recalcular”.</div>` : ''}
     ${naHora ? `<div class="cu-aviso cu-info">ℹ️ ${naHora} pedido(s) deste dia ainda não têm o custo gravado e estão sendo calculados com as fichas de agora. Toque em “Recalcular” para gravar.</div>` : ''}`;
   if (!ps.length) { el.innerHTML = `${h}<p class="vazio">Nenhum pedido neste dia.</p>`; return; }
+  const aj = U.descontoAjuste;
   h += '<h2 class="cu-h2">Pedido por pedido</h2>';
   ps.forEach((x, i) => {
     const c = calcs[i];
@@ -1054,10 +1075,12 @@ function renderBalanco() {
       ${c.linhas.map((l) => `<div class="bal"><div>${l.qtd}x ${esc(l.desc)}</div>
         <small>custou <b>${brl(l.custo)}</b> · vendeu <b>${brl(l.venda)}</b> · lucro <b class="${l.venda - l.custo < 0 ? 'neg' : 'okc'}">${brl(l.venda - l.custo)}</b></small>
         ${l.aviso ? `<small class="warnc">⚠️ ${esc(l.aviso)}</small>` : ''}</div>`).join('')}
+      ${x.ajuste ? `<div class="bal"><div>💸 Ajuste de valor${x.ajuste.motivo ? ` · ${esc(x.ajuste.motivo)}` : ''}</div>
+        <small>pedido ${brl(x.total)} · recebido <b>${brl(U.valorRecebido(x))}</b> · ${aj(x) >= 0 ? 'desconto' : 'a mais'} <b class="${aj(x) > 0 ? 'neg' : 'okc'}">${brl(Math.abs(aj(x)))}</b></small></div>` : ''}
       <div class="tot"><b>Total do pedido</b>
-        ${linhaRes('Custo', brl(c.custo))}${linhaRes('Venda', brl(c.venda))}
-        ${linhaRes('<b>Lucro</b>', `<span class="${c.venda - c.custo < 0 ? 'neg' : 'okc'}" style="font-size:1.15rem">${brl(c.venda - c.custo)}</span>`)}
-        ${x.taxaEntrega ? `${linhaRes('Taxa de entrega (fora do lucro)', brl(x.taxaEntrega))}${linhaRes('Cliente pagou no total', brl(x.total))}` : ''}
+        ${linhaRes('Custo', brl(c.custo))}${linhaRes('Venda', brl(c.venda - aj(x)))}
+        ${linhaRes('<b>Lucro</b>', `<span class="${c.venda - aj(x) - c.custo < 0 ? 'neg' : 'okc'}" style="font-size:1.15rem">${brl(c.venda - aj(x) - c.custo)}</span>`)}
+        ${x.taxaEntrega ? `${linhaRes('Taxa de entrega (fora do lucro)', brl(x.taxaEntrega))}${linhaRes('Cliente pagou no total', brl(U.valorRecebido(x)))}` : ''}
       </div></div>`;
   });
   el.innerHTML = `${h}<p style="text-align:right"><button type="button" class="btn btn-sec btn-peq" data-cu="recalcDia">🔄 Recalcular este dia com os preços atuais</button></p>`;
@@ -1136,6 +1159,14 @@ document.addEventListener('click', (e) => {
     render();
     return;
   }
+  if (a === 'frAbrir' || a === 'frTirar') {
+    const it = listaAtual()[+t.dataset.i];
+    if (!it) return;
+    if (a === 'frAbrir') { it.meia = ''; it.terco = ''; } else { delete it.meia; delete it.terco; }
+    salvar(); render();
+    if (a === 'frAbrir') setTimeout(() => document.querySelector(`[data-f="meia"][data-i="${t.dataset.i}"]`)?.focus(), 30);
+    return;
+  }
   if (a === 'mAdd') {
     listaAtual().push({ id: uid(), ing: '', usa: '' });
     salvar(); render();
@@ -1195,10 +1226,7 @@ function aoEditar(e) {
   if (ci === 'm') listaAtual()[+el.dataset.i][el.dataset.f] = el.value;
   else if (ci === 'ing') {
     if (el.value === '__novo') { const i = +el.dataset.i; render(); formNovoIngrediente((id) => { listaAtual()[i].ing = id; }); return; }
-    const itx = listaAtual()[+el.dataset.i];
-    itx.ing = el.value;
-    if (TEXTO_FIXO[FICHA] && ehOvo(el.value)) itx.fixo = true;   // ovo já vem como quantidade fixa
-    salvar(); render(); return;
+    listaAtual()[+el.dataset.i].ing = el.value; salvar(); render(); return;
   }
   else if (ci === 'ingNome' || ci === 'ingPreco' || ci === 'ingBase') {
     const ing = CU.ingredientes[el.dataset.id];
@@ -1209,7 +1237,6 @@ function aoEditar(e) {
     salvar();
     return;
   }
-  else if (ci === 'fixo') { const itx = listaAtual()[+el.dataset.i]; if (el.checked) itx.fixo = true; else delete itx.fixo; salvar(); refreshCalcs(); return; }
   else if (ci === 'lucroMin') { CU.lucroMinimo = el.value; salvar(); return; }
   else if (ci === 'rende') CU.massa.rende = el.value;
   else if (ci === 'simples') CU.simples[el.dataset.id] = { ...(CU.simples[el.dataset.id] || {}), [el.dataset.f]: el.value };
@@ -1240,5 +1267,5 @@ document.addEventListener('change', (e) => {
   }
   if (e.target.matches('#v-custos [data-ci="lucroMin"]')) { render(); return; }
   if (e.target.closest('#v-custos [data-nl]')) { notaMudou(e.target, true); return; }
-  if (e.target.matches('#v-custos select[data-ci], #v-custos input[type=checkbox][data-ci]')) aoEditar(e);
+  if (e.target.matches('#v-custos select[data-ci]')) aoEditar(e);
 });

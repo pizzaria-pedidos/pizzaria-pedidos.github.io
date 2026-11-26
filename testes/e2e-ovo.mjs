@@ -1,4 +1,4 @@
-// Testa: ingrediente de quantidade fixa (ovo): 1 un na inteira, na ½ e no ⅓, em todo tamanho.
+// Testa: quantidade própria na metade e no terço (ex.: Portuguesa 3 ovos inteira, 2 na ½, 1 no ⅓).
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -7,7 +7,7 @@ const { chromium, devices } = createRequire(import.meta.url)(process.env.PLAYWRI
 const DIR = path.dirname(new URL(import.meta.url).pathname);
 const SITE = 'http://127.0.0.1:5500';
 const FB = path.join(DIR, 'node_modules/firebase');
-const V = 'v=24';
+const V = 'v=25';
 const shots = path.join(DIR, 'shots-ovo');
 fs.mkdirSync(shots, { recursive: true });
 let ok = 0, falhas = 0;
@@ -31,7 +31,7 @@ fs.writeFileSync(path.join(DIR, 'backup-eduardo.json'), JSON.stringify({ custos:
     Calabresa: { itens: [it('Calabresa', 1, 'kg', 30, 150), it('Cebola', 1, 'kg', 6, 50), it('Ovo', 30, 'un', 24, 1)] },
     Mussarela: { itens: [it('Mussarela', 1, 'kg', 40, 150)] },
     'Frango c/ Catupiry': { itens: [it('Frango', 1, 'kg', 20, 80), it('Catupiry', 1, 'kg', 12, 80)] },
-    Portuguesa: { itens: [it('Presunto', 1, 'kg', 30, 100)] },
+    Portuguesa: { itens: [it('Presunto', 1, 'kg', 30, 100), it('Ovo', 30, 'un', 24, 3)] },
   },
   bordas: {}, bebidas: {} } }));
 
@@ -82,81 +82,73 @@ const custos = (pg, pedido) => pg.evaluate(async ({ V, pedido }) => (await impor
 const pizza = (tam, ...ids) => ({ itens: [{ tipo: 'pizza', nome: `Pizza ${tam}`, tamanho: tam, qtd: 1, precoUnit: 50, sabores: ids.map((id) => ({ id, nome: id })) }] });
 const perto = (a, b) => Math.abs(a - b) < 0.015;
 
-console.log('\n1) Ovo importado vira ingrediente em unidade, sem quantidade fixa ainda');
+console.log('\n1) Sem preencher nada: tudo divide como antes');
 let cu = await fichas(adm);
 const ovo = ingPor(cu, 'Ovo');
 check(ovo && ovo.base === 'un' && perto(ovo.preco, 0.8), `Ovo: R$ 0,80 a unidade (${ovo && ovo.preco})`);
-const antesMeia = (await custos(adm, pizza('Grande', 'calabresa', 'mussarela'))).custo;
 const mussG = (await custos(adm, pizza('Grande', 'mussarela'))).custo;
-check(perto(antesMeia - mussG, -0.2), `antes: o ovo era dividido na meia (diferença ${(antesMeia - mussG).toFixed(2)})`);
+// Portuguesa: presunto 100 g a R$ 30/kg = 3,00 + 3 ovos = 2,40 → recheio 5,40
+const portG = (await custos(adm, pizza('Grande', 'portuguesa'))).custo;
+check(perto(portG - mussG, 5.4 - 6), `inteira: 3 ovos (diferença p/ Mussarela ${(portG - mussG).toFixed(2)})`);
+const meiaAntes = (await custos(adm, pizza('Grande', 'portuguesa', 'mussarela'))).custo;
+check(perto(meiaAntes - mussG, 2.7 - 3), 'meia Portuguesa: divide tudo por 2 (1,5 ovo)');
 
-console.log('\n2) Marcar "Quantidade fixa" no ovo da Calabresa');
-await adm.click('[data-cu="ficha"][data-v="sabores"]');
-await adm.click('[data-cu="sabSel"][data-id="calabresa"]');
-const nFx = await adm.$$eval('#v-custos .m-fx input', (els) => els.length);
-check(nFx === 3, `caixinha "Quantidade fixa" em cada ingrediente do sabor (${nFx})`);
-const iOvo = await adm.$$eval('#v-custos select[data-ci="ing"]', (els) => els.findIndex((s) => s.options[s.selectedIndex].text === 'Ovo'));
-await adm.check(`#v-custos input[data-ci="fixo"][data-i="${iOvo}"]`);
-await adm.waitForTimeout(1500);
-const res = await adm.textContent('#cu-res');
-check(res.includes('vai inteiro'), 'ficha avisa que o ovo vai inteiro nas frações');
-// recheio var = 4,80; fixo = 0,80 → ½ = 3,20 e ⅓ = 2,40
-check(res.includes('3,20') && res.includes('2,40'), 'Metade = R$ 3,20 e Terço = R$ 2,40 (o ovo entra inteiro)');
-await adm.screenshot({ path: `${shots}/01-ficha-calabresa.png`, fullPage: true });
-cu = await fichas(adm);
-check(cu.sabores.calabresa.itens[iOvo].fixo === true, 'gravado no banco (fixo: true)');
-check(cu.sabores.calabresa.itens.filter((x) => x.fixo).length === 1, 'só o ovo ficou fixo');
-
-console.log('\n3) Custo do pedido: 1 ovo inteiro na inteira, na ½ e no ⅓');
-const calabG = (await custos(adm, pizza('Grande', 'calabresa'))).custo;
-const meia = (await custos(adm, pizza('Grande', 'calabresa', 'mussarela'))).custo;
-const terco = (await custos(adm, pizza('Grande', 'calabresa', 'mussarela', 'frango-catupiry'))).custo;
-check(perto(calabG - mussG, 5.6 - 6), `inteira: igual a antes (diferença p/ Mussarela ${(calabG - mussG).toFixed(2)})`);
-check(perto(meia - mussG, 0.2), `meia Calabresa/Mussarela: recheio = 2,40 + 1 ovo 0,80 + 3,00 (diferença ${(meia - mussG).toFixed(2)})`);
-check(perto(terco - mussG, (4.8 + 6 + 2.56) / 3 + 0.8 - 6), `3 sabores: o ovo entra inteiro (diferença ${(terco - mussG).toFixed(2)})`);
-const dois = (await custos(adm, pizza('Grande', 'calabresa', 'calabresa'))).custo;
-check(perto(dois - calabG, 0.8), 'meia Calabresa + meia Calabresa = 2 ovos (um em cada metade)');
-
-console.log('\n4) Outro tamanho: o ovo não diminui');
-await adm.click('[data-cu="ficha"][data-v="base"]');
-await adm.fill('[data-ci="fator"][data-tam="Média"]', '70');
-await adm.waitForTimeout(1500);
-const calabM = (await custos(adm, pizza('Média', 'calabresa'))).custo;
-const baseG = mussG - 6;
-check(perto(calabM, (baseG + 4.8) * 0.7 + 0.8), `Média (70%): o resto diminui, o ovo continua 1 (R$ ${calabM})`);
-
-console.log('\n5) Ovo escolhido em outro sabor já vem marcado');
+console.log('\n2) Não existe mais a caixinha "Quantidade fixa"');
 await adm.click('[data-cu="ficha"][data-v="sabores"]');
 await adm.click('[data-cu="sabSel"][data-id="portuguesa"]');
-await adm.click('[data-cu="mAdd"]');
-await adm.selectOption('#v-custos select[data-ci="ing"][data-i="1"]', { label: 'Ovo' });
-await adm.waitForTimeout(300);
-check(await adm.isChecked('#v-custos input[data-ci="fixo"][data-i="1"]'), 'Portuguesa: ao escolher "Ovo", a quantidade fixa já vem marcada');
-await adm.fill('#v-custos input[data-ci="m"][data-i="1"]', '1');
-await adm.click('[data-cu="ficha"][data-v="massa"]');
-check((await adm.$$eval('#v-custos .m-fx', (els) => els.length)) === 0, 'Massa não tem a caixinha (a receita é dividida pelos discos)');
-await adm.click('[data-cu="ficha"][data-v="adicionais"]');
-check((await adm.$$eval('#v-custos .m-fx', (els) => els.length)) === 0, 'Adicionais não têm a caixinha');
+check(!(await adm.$('#v-custos input[type="checkbox"]')), 'nenhuma caixinha de marcar nas fichas');
+const nBt = await adm.$$eval('#v-custos [data-cu="frAbrir"]', (els) => els.length);
+check(nBt === 2, `botão "Quantidade diferente na metade e no terço" em cada ingrediente (${nBt})`);
 
-console.log('\n6) Gramas e Lucro');
+console.log('\n3) Ovos da Portuguesa: 3 na inteira, 2 na metade, 1 no terço');
+const iOvo = await adm.$$eval('#v-custos select[data-ci="ing"]', (els) => els.findIndex((s) => s.options[s.selectedIndex].text === 'Ovo'));
+await adm.click(`#v-custos [data-cu="frAbrir"][data-i="${iOvo}"]`);
+await adm.waitForSelector(`#v-custos input[data-f="meia"][data-i="${iOvo}"]`);
+check((await adm.getAttribute(`#v-custos input[data-f="meia"][data-i="${iOvo}"]`, 'placeholder')) === '1,5', 'campo da metade mostra a conta automática (1,5) como dica');
+await adm.fill(`#v-custos input[data-f="meia"][data-i="${iOvo}"]`, '2');
+await adm.fill(`#v-custos input[data-f="terco"][data-i="${iOvo}"]`, '1');
+await adm.waitForTimeout(1500);
+const res = await adm.textContent('#cu-res');
+// ½ = presunto 1,50 + 2 ovos 1,60 = 3,10 · ⅓ = presunto 1,00 + 1 ovo 0,80 = 1,80
+check(res.includes('3,10') && res.includes('1,80'), 'ficha: Metade R$ 3,10 e Terço R$ 1,80');
+await adm.screenshot({ path: `${shots}/01-ficha-portuguesa.png`, fullPage: true });
+cu = await fichas(adm);
+const itOvo = cu.sabores.portuguesa.itens[iOvo];
+check(itOvo.meia === '2' && itOvo.terco === '1' && itOvo.usa === '3' || (itOvo.meia === '2' && itOvo.terco === '1'), `gravado no banco (meia ${itOvo.meia}, terço ${itOvo.terco})`);
+check(!('meia' in cu.sabores.portuguesa.itens[1 - iOvo]), 'o presunto continua dividindo sozinho');
+
+console.log('\n4) Custo do pedido usa o que foi preenchido');
+check(perto((await custos(adm, pizza('Grande', 'portuguesa'))).custo, portG), 'inteira: continua 3 ovos');
+const meia = (await custos(adm, pizza('Grande', 'portuguesa', 'mussarela'))).custo;
+check(perto(meia - mussG, 3.1 - 3), `meia Portuguesa/Mussarela: 2 ovos (diferença ${(meia - mussG).toFixed(2)})`);
+const terco = (await custos(adm, pizza('Grande', 'portuguesa', 'mussarela', 'frango-catupiry'))).custo;
+check(perto(terco - mussG, 1.8 + 2 + 2.56 / 3 - 6), `3 sabores: 1 ovo no terço (diferença ${(terco - mussG).toFixed(2)})`);
+const calM = (await custos(adm, pizza('Grande', 'calabresa', 'mussarela'))).custo;
+check(perto(calM - mussG, (5.6 - 6) / 2), 'Calabresa sem preencher nada: continua dividindo (ovo da ficha dela vira 0,5)');
+
+console.log('\n5) Só em Sabores');
+await adm.click('[data-cu="ficha"][data-v="base"]');
+check((await adm.$$eval('#v-custos [data-cu="frAbrir"]', (els) => els.length)) === 0, 'Base não tem (vai inteira em toda pizza)');
+await adm.click('[data-cu="ficha"][data-v="massa"]');
+check((await adm.$$eval('#v-custos [data-cu="frAbrir"]', (els) => els.length)) === 0, 'Massa não tem');
+
+console.log('\n6) Gramas');
 await adm.click('[data-cu="tab"][data-v="gramas"]');
 await adm.waitForTimeout(300);
-const linhaOvo = await adm.$$eval('#v-custos tr', (trs) => trs.map((t) => t.textContent).filter((t) => t.includes('Ovo')));
-check(linhaOvo.length === 2 && linhaOvo.every((t) => (t.match(/1 un/g) || []).length === 3), `Gramas: Ovo "1 un" na inteira, ½ e ⅓ (${linhaOvo.join(' | ')})`);
+const linhaOvo = await adm.$$eval('#v-custos tr', (trs) => trs.map((t) => [...t.cells].map((c) => c.textContent.trim()).join('|')).filter((t) => t.startsWith('Ovo')));
+check(linhaOvo.includes('Ovo|3 un|2 un|1 un'), `Portuguesa: Ovo 3 / 2 / 1 (${linhaOvo.join(' ; ')})`);
 await adm.screenshot({ path: `${shots}/02-gramas.png`, fullPage: true });
-await adm.click('[data-cu="tab"][data-v="lucro"]');
-await adm.waitForTimeout(300);
-const lucro = await adm.textContent('#v-custos');
-check(lucro.includes('Pizza Grande') && lucro.includes('Pizza Média'), 'Lucro mostra Grande e Média sem erro');
-await adm.screenshot({ path: `${shots}/03-lucro.png`, fullPage: true });
 
-console.log('\n7) Celular: a caixinha cabe na tela');
+console.log('\n7) Voltar a dividir sozinho');
 await adm.click('[data-cu="tab"][data-v="fichas"]');
 await adm.click('[data-cu="ficha"][data-v="sabores"]');
-await adm.click('[data-cu="sabSel"][data-id="calabresa"]');
-const larg = await adm.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
-check(larg, 'sem rolagem para o lado');
-await adm.screenshot({ path: `${shots}/04-celular.png`, fullPage: true });
+await adm.click('[data-cu="sabSel"][data-id="portuguesa"]');
+await adm.click(`#v-custos [data-cu="frTirar"][data-i="${iOvo}"]`);
+await adm.waitForTimeout(1500);
+cu = await fichas(adm);
+check(!('meia' in cu.sabores.portuguesa.itens[iOvo]), 'apagou a quantidade própria');
+check(perto((await custos(adm, pizza('Grande', 'portuguesa', 'mussarela'))).custo, meiaAntes), 'meia volta a dividir por 2');
+check(await adm.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'celular: sem rolagem para o lado');
 
 check(!erros.length, `sem erros de JavaScript ${erros.join(' | ')}`);
 console.log(`\nRESULTADO: ${ok} ok, ${falhas} falha(s)`);

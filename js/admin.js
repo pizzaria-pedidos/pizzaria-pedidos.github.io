@@ -3,14 +3,14 @@
 // =====================================================================
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp,
-} from './firebase-config.js?v=24';
+  onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp, deleteField,
+} from './firebase-config.js?v=25';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=24';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=24';
+import * as U from './utils.js?v=25';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=25';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -408,10 +408,13 @@ function pedidoHTML(p, comAcoes = true) {
     <div class="pc-bloco">${esc(enderecoTexto(p))}</div>
     ${itensHTML(p.itens || [])}
     <div class="pc-bloco">${esc(pagamentoTexto(p))}</div>
-    <div class="pc-total"><span>Total${p.taxaEntrega ? ` <small style="font-weight:600">(entrega ${fmtBRL(p.taxaEntrega)})</small>` : ''}</span><span>${fmtBRL(p.total)}</span></div>
+    <div class="pc-total${p.ajuste ? ' riscado' : ''}"><span>Total${p.taxaEntrega ? ` <small style="font-weight:600">(entrega ${fmtBRL(p.taxaEntrega)})</small>` : ''}</span><span>${fmtBRL(p.total)}</span></div>
+    ${p.ajuste ? `<div class="pc-ajuste"><span>💸 Recebido</span><span>${fmtBRL(U.valorRecebido(p))}</span></div>
+    <small class="pc-ajuste-det">${U.descontoAjuste(p) >= 0 ? 'Desconto de' : 'Recebeu a mais'} ${fmtBRL(Math.abs(U.descontoAjuste(p)))}${p.ajuste.motivo ? ` · ${esc(p.ajuste.motivo)}` : ''}</small>` : ''}
     ${comAcoes ? `<div class="pc-acoes">${principal}</div>
     <details class="pc-mais"><summary>⋯ Mais opções</summary>
       <label class="campo"><span>Mudar status / cancelar</span><select data-status="${esc(p.id)}" aria-label="Mudar status">${opcoes}</select></label>
+      <button type="button" class="btn btn-sec btn-peq" data-ajustar="${esc(p.id)}">💸 ${p.ajuste ? 'Mudar o ajuste de valor' : 'Ajustar valor'}</button>
       <a class="link" href="${esc(U.linkWhats(p.clienteTel))}" target="_blank" rel="noopener">Conversar no WhatsApp (sem mensagem)</a>
     </details>` : ''}
   </article>`;
@@ -428,7 +431,7 @@ function preparoMedio(lista) {
 function renderPedidos(carregando = false) {
   if (S.view !== 'pedidos') return;
   const validos = S.pedidos.filter((p) => p.status !== 'cancelado');
-  const fat = validos.reduce((t, p) => t + (p.total || 0), 0);
+  const fat = validos.reduce((t, p) => t + U.valorRecebido(p), 0);
   $('#stats').innerHTML = `
     <div class="stat"><small>Pedidos</small><strong>${validos.length}</strong></div>
     <div class="stat"><small>Faturamento</small><strong>${fmtBRL(fat)}</strong></div>
@@ -485,9 +488,65 @@ $('#lista-pedidos-admin').addEventListener('click', (e) => {
   // o link já abre o WhatsApp com a mensagem; aqui só marca como avisado/concluído
   const inf = e.target.closest('[data-informar]');
   if (inf) { mudarStatus(inf.dataset.informar, 'concluido', { informadoEm: serverTimestamp() }); return; }
+  const aj = e.target.closest('[data-ajustar]');
+  if (aj) { abrirAjuste(aj.dataset.ajustar); return; }
   const b = e.target.closest('[data-avancar]');
   if (b) mudarStatus(b.dataset.avancar, b.dataset.para);
 });
+
+// ---------- 💸 Ajustar valor (desconto, cortesia, divergência…) ----------
+// O pedido original (itens e total) fica intacto; o ajuste é guardado à parte em pedidos/{id}.ajuste
+// e entra no faturamento e no Balanço (a venda cai, o custo continua o mesmo).
+function abrirAjuste(id) {
+  const p = S.pedidos.find((x) => x.id === id);
+  if (!p) return;
+  abrirModal(`💸 Ajustar valor · ${U.codigoPedido(p.id)}`, `
+    <p class="cu-dica" style="margin-bottom:12px">Use quando o cliente pagou um valor diferente do pedido (desconto, cortesia, erro…). O pedido continua guardado como foi feito; o <b>faturamento</b> e o <b>Balanço</b> passam a usar o valor recebido.</p>
+    <form id="form-ajuste" novalidate>
+      <div class="cu-item" style="margin-bottom:12px"><span>Total do pedido</span><b>${fmtBRL(p.total)}</b></div>
+      <label class="campo"><span>Valor que você recebeu (R$)</span>
+        <input class="input" name="recebido" inputmode="decimal" required value="${p.ajuste ? esc(String(p.ajuste.recebido).replace('.', ',')) : ''}" placeholder="Ex.: 65,76"></label>
+      <p class="cu-dica" id="aj-dif"></p>
+      <label class="campo"><span>Motivo (opcional)</span>
+        <input class="input" name="motivo" maxlength="60" value="${esc(p.ajuste?.motivo || '')}" placeholder="Ex.: divergência no pedido"></label>
+      <p class="erro" id="aj-erro" role="alert"></p>
+    </form>`,
+  `${p.ajuste ? '<button type="button" class="btn btn-sec" id="aj-tirar">Tirar ajuste</button>' : '<button type="button" class="btn btn-sec" data-fechar>Cancelar</button>'}
+   <button type="submit" form="form-ajuste" class="btn btn-primario">Salvar ajuste</button>`);
+  const f = $('#form-ajuste');
+  const dif = () => {
+    const v = U.parseMoney(f.elements.recebido.value);
+    const d = U.round2(p.total - v);
+    $('#aj-dif').innerHTML = f.elements.recebido.value.trim() && v >= 0
+      ? (d > 0 ? `Desconto de <b>${fmtBRL(d)}</b>` : d < 0 ? `Recebeu <b>${fmtBRL(-d)}</b> a mais` : 'Igual ao total do pedido')
+      : '';
+  };
+  f.elements.recebido.addEventListener('input', () => { $('#aj-erro').textContent = ''; dif(); });
+  dif();
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const txt = f.elements.recebido.value.trim();
+    const v = U.round2(U.parseMoney(txt));
+    if (!txt || !(v >= 0)) { $('#aj-erro').textContent = 'Digite o valor recebido. Ex.: 65,76'; f.elements.recebido.focus(); return; }
+    if (v === U.round2(p.total)) { $('#aj-erro').textContent = 'É igual ao total do pedido. Para desfazer um ajuste, use "Tirar ajuste".'; return; }
+    try {
+      await updateDoc(doc(db, 'pedidos', p.id), {
+        ajuste: { recebido: v, desconto: U.round2(p.total - v), motivo: f.elements.motivo.value.trim().slice(0, 60), em: serverTimestamp() },
+      });
+      fecharModal();
+      U.toast(`Ajuste salvo: recebido ${fmtBRL(v)} ✓`);
+    } catch (err) { tratarErro(err); U.toast('Erro ao salvar o ajuste.', 'erro-t'); }
+  });
+  $('#aj-tirar')?.addEventListener('click', async () => {
+    if (!confirm('Tirar o ajuste? O pedido volta a contar pelo total original.')) return;
+    try {
+      await updateDoc(doc(db, 'pedidos', p.id), { ajuste: deleteField() });
+      fecharModal();
+      U.toast('Ajuste removido ✓');
+    } catch (err) { tratarErro(err); U.toast('Erro ao tirar o ajuste.', 'erro-t'); }
+  });
+  setTimeout(() => f.elements.recebido.focus(), 50);
+}
 
 $('#lista-pedidos-admin').addEventListener('change', (e) => {
   if (e.target.dataset.status) mudarStatus(e.target.dataset.status, e.target.value);

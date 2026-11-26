@@ -56,16 +56,16 @@ CONTEXTO.md       este arquivo
 testes/           testes automáticos (emulador Firebase + Playwright). Veja testes/LEIA-ME.md
 ```
 
-⚠️ **Versão dos arquivos: hoje é `?v=24`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=25`) **em todos os lugares**. Depois rode `python3 testes/versao.py 25` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
+⚠️ **Versão dos arquivos: hoje é `?v=25`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=26`) **em todos os lugares**. Depois rode `python3 testes/versao.py 26` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
 
 ## 4. Dados no Firestore
 
 - `config/loja`: nome, logoUrl, whatsapp, endereco, horarios{dom..sab:{aberto,abre,fecha}}, fechadoManual, **entregaAtiva**, taxaEntrega, pedidoMinimo, **tempoEntrega/tempoRetirada** (texto livre), pagamentos[], chavePix, **msgProntoEntrega/msgProntoRetirada** (aceitam {nome} {codigo} {total}), regraPrecoPizza ('maior'), ocultarIndisponiveis, limiteRecorrente, limiteVip, diasSumido, **gruposSabor**[{id,nome,precos{tamanho:valor}}].
 - `config/contador`: ultimoNumero (contador interno; o cliente vê o **código aleatório**).
 - `categorias`, `produtos` (tipo 'pizza'|'simples', tamanho, fatias, maxSabores, fotoUrl, disponivel…), `sabores` (ingredientes = descrição, precos{tamanho}, **grupo**, fotoUrl), `bordas`, `adicionais`.
-- `pedidos/{id}`: itens[] (com cópia de nomes e preços), tipo, endereco, pagamento, troco, subtotal, taxaEntrega, total, status, criadoEm, **prontoEm, informadoEm, concluidoEm**.
+- `pedidos/{id}`: itens[] (com cópia de nomes e preços), tipo, endereco, pagamento, troco, subtotal, taxaEntrega, total, status, criadoEm, **prontoEm, informadoEm, concluidoEm**, **ajuste**{recebido, desconto, motivo, em} (opcional, gravado pelo admin no 💸 Ajustar valor; `U.valorRecebido(p)` e `U.descontoAjuste(p)` em `js/utils.js`; o faturamento e o Balanço usam o recebido; itens e total ficam intactos).
 - `clientes/{tel}`: nome, **apelido**, telefone, totalPedidos, totalGasto, primeiro/ultimoPedidoEm, ultimoEndereco, ultimosPedidos[].
-- `custos/fichas` (só admin): pinHash, massa{rende,itens}, base{itens}, sabores{id:{itens}}, bordas, adicionais, simples{produtoId:{qtd,preco,hist}}, tamanhos{ref,fator}, **ingredientes**{id:{nome,base:'kg'|'L'|'un',preco,emb,hist[{d,p,desc}],at}}, **apelidos**{assinatura→destino}, **lucroMinimo**. Os itens das fichas são `{id, ing, usa, fixo?}`. `fixo: true` (ex.: ovo) = a quantidade não divide na ½ e no ⅓ e não muda com o tamanho; só existe em sabores, base e bordas.
+- `custos/fichas` (só admin): pinHash, massa{rende,itens}, base{itens}, sabores{id:{itens}}, bordas, adicionais, simples{produtoId:{qtd,preco,hist}}, tamanhos{ref,fator}, **ingredientes**{id:{nome,base:'kg'|'L'|'un',preco,emb,hist[{d,p,desc}],at}}, **apelidos**{assinatura→destino}, **lucroMinimo**. Os itens das fichas são `{id, ing, usa, meia?, terco?}`. `meia`/`terco` (só em sabores) = quantidade própria quando o sabor é ½ ou ⅓ da pizza (ex.: Portuguesa: usa 3 ovos, meia 2, terco 1); vazio ou ausente = divide sozinho (`qtdFrac` em `js/custos.js`). O antigo `fixo` (v20–v24) é convertido sozinho e removido.
 - `custosPedidos/{pedidoId}` (só admin): custo, venda e linhas gravados no momento do pedido.
 - **Fotos** ficam como `data:image/jpeg;base64` dentro do próprio documento, reduzidas no navegador. Não usa Storage, porque o Storage exige o plano Blaze.
 
@@ -97,6 +97,7 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
   - botões rápidos: abrir/fechar loja, entrega ligada/desligada, ⏱️ tempo de espera;
   - "Preparo médio" do dia.
 - **Cardápio:** CRUD; **preço por grupo** de sabores; fotos da **galeria** (o painel reduz o tamanho sozinho).
+- **💸 Ajustar valor** (26/11/2026): em "⋯ Mais opções" do card do pedido. Grava `pedidos/{id}.ajuste` sem mexer nos itens e no total. O card mostra o total riscado e "💸 Recebido"; o faturamento e o Balanço usam o recebido. Criado para o pedido do Ramon de 25/11 (2 pizzas de R$ 42; uma saiu por R$ 23,76 → recebido R$ 65,76). O **Eduardo vai aplicar sozinho** nesse pedido.
 - **Clientes:** tabela ordenável; etiquetas Novo, Recorrente, VIP e Sumido; histórico; **apagar cliente** (com opção de apagar os pedidos).
 - **Ajustes:** loja, horários, entrega e pagamento, tempos de espera, mensagens do "pedido pronto", regras.
 
@@ -113,7 +114,7 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
   - **🧾 Ingredientes** é a lista única: preço por kg, L ou un, **histórico** (com ✕ para apagar um lançamento errado) e variação;
   - Massa, Base e tamanhos, Sabores, Bordas, Adicionais e Bebidas e outros.
 - **Lucro**, com **alerta de lucro mínimo**, e **Gramas** (inteira, ½ e ⅓).
-- **🥚 Quantidade fixa** (25/11/2026): caixinha em cada ingrediente das fichas de Sabores, Base e Bordas. O ovo é 1 unidade na inteira, na ½ e no ⅓, em todo tamanho. Ao escolher um ingrediente chamado "Ovo", já vem marcada. Funções em `js/custos.js`: `baseT`, `recheioT`, `bordaT` e `pizzaT`.
+- **✏️ Quantidade diferente na metade e no terço** (26/11/2026): em Fichas → Sabores, botão em cada ingrediente que abre os campos "Na metade (½)" e "No terço (⅓)" (ex.: Portuguesa 3 / 2 / 1 ovos). Substituiu a caixinha "🥚 Quantidade fixa" (v20), que o Eduardo **não quis**: na prática a Portuguesa inteira precisa de mais de 1 ovo. **Não usar caixinhas de marcar** nas fichas. Funções em `js/custos.js`: `qtdFrac`, `recheioT(id, t, n)`, `baseT`, `bordaT`, `pizzaT`.
 
 ## 7. Decisões já tomadas (não refazer sem o Eduardo pedir)
 
@@ -154,4 +155,4 @@ Veja `testes/LEIA-ME.md`. Resumo:
 - o site é servido localmente;
 - o Playwright faz o papel do cliente e do admin.
 
-São 12 baterias e ~295 verificações. Todas passavam na versão `?v=24`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.
+São 13 baterias e ~310 verificações. Todas passavam na versão `?v=25`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.

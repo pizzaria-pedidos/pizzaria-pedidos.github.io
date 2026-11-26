@@ -124,6 +124,10 @@ export function statusLoja(loja, agora = new Date()) {
 export const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 export const fmtBRL = (v) =>
   (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+/** Quanto o cliente realmente pagou: o total, ou o valor do 💸 ajuste feito no painel */
+export const valorRecebido = (p) => (p?.ajuste && typeof p.ajuste.recebido === 'number' ? p.ajuste.recebido : p?.total || 0);
+/** Desconto do ajuste (positivo = recebeu menos que o total) */
+export const descontoAjuste = (p) => (p?.ajuste ? round2((p.total || 0) - valorRecebido(p)) : 0);
 export const numPedido = (n) => (n ? `#${String(n).padStart(4, '0')}` : '');
 
 /**
