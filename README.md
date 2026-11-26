@@ -8,7 +8,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **`admin.html`**: painel (pedidos com som, cardápio, clientes, ajustes)
 - HTML + CSS + JavaScript puro, sem build. Firebase (Firestore + Authentication). Hospedagem no GitHub Pages.
 
-## ✅ Status atual (26/11/2026): no ar
+## ✅ Status atual (27/11/2026): no ar
 
 | | |
 |---|---|
@@ -92,6 +92,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
   - **Horário automático de verdade:** sempre na hora de Salvador, e o "Fechar agora" vale só até a próxima abertura (depois a loja abre sozinha).
   - Versão dos arquivos `?v=26`; com o bloqueio de bairro fora da lista, `?v=27`.
   - Com bairros cadastrados, a tela de entrega pede **só Bairro → Número da casa → Ponto de referência** (sem Rua e Complemento). Versão dos arquivos `?v=28`.
+- **Novidade de 27/11/2026: 🏪 Pedido no balcão.** Botão no painel para você mesmo registrar o pedido de quem chegou na porta ou ligou. Versão dos arquivos `?v=29`.
 - **Teste de 25/11/2026 (desfeito):** a `?v=23` mostrava a foto da bebida sempre inteira, com sobras brancas. O Eduardo não gostou, e a `?v=24` voltou ao jeito anterior: a foto preenche o quadro todo, como nas pizzas.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
@@ -193,6 +194,17 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
 
 ## Como usar no dia a dia
 
+- **🏪 Pedido no balcão (cliente na porta ou por telefone):**
+  1. No painel, tela **Pedidos**, toque em **🏪 Pedido no balcão**. Abre o cardápio com uma **faixa laranja "MODO BALCÃO"**.
+  2. Digite o **WhatsApp do cliente** (opcional, mas recomendado). Se ele já for cliente, aparece "⭐ Já é cliente: João · 8 pedidos" e o nome vem sozinho. Se não, digite o **nome**.
+  3. Toque em **Começar pedido** e monte o pedido como o cliente faria: pizza, borda, bebida…
+  4. No carrinho, já vem **Retirar no local**. Para pedido por telefone com entrega, escolha **Entrega** e o bairro. Escolha o pagamento.
+  5. Toque em **✅ Registrar pedido**. O pedido entra na hora na lista de Pedidos (com a etiqueta **🏪 Balcão**), como **Novo** e **tocando o som**, igual aos outros. Conta no faturamento, no Balanço e no histórico do cliente.
+  6. Se tiver o número, toque em **📲 Mandar resumo para o cliente** para mandar o pedido e o código no WhatsApp dele. Depois, **🏪 Novo pedido no balcão** para o próximo.
+  - **Só funciona no aparelho logado no painel.** Se outra pessoa abrir o link do balcão, vê a mensagem de que precisa do login do painel.
+  - **Fora do horário:** o balcão avisa "⚠️ Loja fechada pelo horário" mas deixa registrar; quem decide se atende é você. Para os clientes, pelo link, continua bloqueado.
+  - **Sem WhatsApp:** o pedido é registrado com o nome, mas o cliente **não entra em Clientes** (o cadastro é pelo número). No painel aparece "(sem WhatsApp)", e depois do ✅ Pedido pronto o botão é **🏁 Entregue ao cliente**.
+  - O modo balcão usa um carrinho separado: não mistura com o seu "Olá, Eduardo" do site.
 - **💸 Ajustar valor (desconto, cortesia, divergência):** quando o cliente pagou um valor diferente do pedido:
   1. Em **Pedidos**, escolha o **dia** do pedido no campo de data.
   2. No card do pedido, toque em **⋯ Mais opções → 💸 Ajustar valor**.
@@ -339,5 +351,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=28` → `?v=29` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=29` → `?v=30` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

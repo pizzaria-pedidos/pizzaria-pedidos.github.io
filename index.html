@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://firestore.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=28">
+  <link rel="stylesheet" href="css/style.css?v=29">
 </head>
 <body class="pg-cliente">
   <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
@@ -43,8 +43,32 @@
     </div>
   </section>
 
+  <!-- ============ 🏪 Pedido no balcão (só o dono, logado no painel) ============ -->
+  <section id="tela-balcao" class="boasvindas" hidden>
+    <div class="bv-card">
+      <div class="logo-img bv-logo">🏪</div>
+      <h1>Pedido no balcão</h1>
+      <p class="bv-msg" id="bc-msg">Verificando o seu acesso…</p>
+      <form id="form-balcao" novalidate hidden>
+        <label class="campo" id="campo-bc-tel">
+          <span>WhatsApp do cliente <small class="opcional">(opcional)</small></span>
+          <input id="bc-tel" type="tel" inputmode="numeric" placeholder="(71) 99999-9999" maxlength="15">
+        </label>
+        <p class="bc-achado" id="bc-achado" hidden></p>
+        <label class="campo" id="campo-bc-nome">
+          <span>Nome do cliente *</span>
+          <input id="bc-nome" type="text" autocapitalize="words" placeholder="Ex.: João Silva" maxlength="60">
+        </label>
+        <p class="erro" id="bc-erro" role="alert"></p>
+        <button class="btn btn-primario btn-bloco btn-grande" type="submit" id="bc-btn">Começar pedido</button>
+      </form>
+      <p style="margin-top:14px"><a class="link" href="admin.html">← Voltar ao painel</a></p>
+    </div>
+  </section>
+
   <!-- ============ App ============ -->
   <div id="app" hidden>
+    <div id="faixa-balcao" class="faixa-balcao" hidden></div>
     <header class="topo">
       <div class="topo-capa"></div>
       <div class="topo-conteudo">
@@ -185,7 +209,7 @@
       var erros = [];
       window.addEventListener('error', function (e) { erros.push(e.message || (e.target && e.target.src) || 'erro'); }, true);
       setTimeout(function () {
-        if (document.querySelector('#app:not([hidden]), #tela-boasvindas:not([hidden])')) return;
+        if (document.querySelector('#app:not([hidden]), #tela-boasvindas:not([hidden]), #tela-balcao:not([hidden])')) return;
         document.getElementById('falha-carga').hidden = false;
         document.getElementById('falha-detalhe').textContent = erros.length ? 'Detalhe: ' + erros.slice(0, 3).join(' | ') : '';
       }, 12000);
@@ -194,6 +218,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="js/cliente.js?v=28"></script>
+  <script type="module" src="js/cliente.js?v=29"></script>
 </body>
 </html>

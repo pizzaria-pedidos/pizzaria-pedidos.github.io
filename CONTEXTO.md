@@ -1,6 +1,6 @@
 # 🍕 CONTEXTO DO PROJETO: leia isto primeiro
 
-> **Para o Claude do próximo chat:** este arquivo resume tudo o que foi construído e decidido até 26/11/2026.
+> **Para o Claude do próximo chat:** este arquivo resume tudo o que foi construído e decidido até 27/11/2026.
 > Leia este arquivo inteiro. Depois leia o `README.md` (detalhes de uso) e o código antes de propor qualquer mudança.
 > O conteúdo deste repositório é **exatamente o que está no ar**.
 
@@ -56,14 +56,14 @@ CONTEXTO.md       este arquivo
 testes/           testes automáticos (emulador Firebase + Playwright). Veja testes/LEIA-ME.md
 ```
 
-⚠️ **Versão dos arquivos: hoje é `?v=28`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=29`) **em todos os lugares**. Depois rode `python3 testes/versao.py 29` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
+⚠️ **Versão dos arquivos: hoje é `?v=29`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=30`) **em todos os lugares**. Depois rode `python3 testes/versao.py 30` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
 
 ## 4. Dados no Firestore
 
 - `config/loja`: nome, logoUrl, whatsapp, endereco, horarios{dom..sab:{aberto,abre,fecha}}, fechadoManual, **fechadoAte** (ms; até quando vale o "Fechar agora"), **bairros**[{id,nome,taxa}], **entregaAtiva**, taxaEntrega, pedidoMinimo, **tempoEntrega/tempoRetirada** (texto livre), pagamentos[], chavePix, **msgProntoEntrega/msgProntoRetirada** (aceitam {nome} {codigo} {total}), regraPrecoPizza ('maior'), ocultarIndisponiveis, limiteRecorrente, limiteVip, diasSumido, **gruposSabor**[{id,nome,precos{tamanho:valor}}].
 - `config/contador`: ultimoNumero (contador interno; o cliente vê o **código aleatório**).
 - `categorias`, `produtos` (tipo 'pizza'|'simples', tamanho, fatias, maxSabores, fotoUrl, disponivel…), `sabores` (ingredientes = descrição, precos{tamanho}, **grupo**, fotoUrl), `bordas`, `adicionais`.
-- `pedidos/{id}`: itens[] (com cópia de nomes e preços), tipo, endereco{rua,numero,bairro,complemento,referencia, **bairroId?**, **foraDaLista?**}, pagamento, troco, subtotal, taxaEntrega, total, status, criadoEm, **prontoEm, informadoEm, concluidoEm**, **ajuste**{recebido, desconto, motivo, em} (opcional, gravado pelo admin no 💸 Ajustar valor; `U.valorRecebido(p)` e `U.descontoAjuste(p)` em `js/utils.js`; o faturamento e o Balanço usam o recebido; itens e total ficam intactos).
+- `pedidos/{id}`: itens[] (com cópia de nomes e preços), tipo, endereco{rua,numero,bairro,complemento,referencia, **bairroId?**, **foraDaLista?**}, pagamento, troco, subtotal, taxaEntrega, total, status, criadoEm, **origem** ('balcao' quando o dono registrou pelo 🏪 Pedido no balcão; ausente = cliente pelo link), **prontoEm, informadoEm, concluidoEm**, **ajuste**{recebido, desconto, motivo, em} (opcional, gravado pelo admin no 💸 Ajustar valor; `U.valorRecebido(p)` e `U.descontoAjuste(p)` em `js/utils.js`; o faturamento e o Balanço usam o recebido; itens e total ficam intactos).
 - `clientes/{tel}`: nome, **apelido**, telefone, totalPedidos, totalGasto, primeiro/ultimoPedidoEm, ultimoEndereco, ultimosPedidos[].
 - `custos/fichas` (só admin): pinHash, massa{rende,itens}, base{itens}, sabores{id:{itens}}, bordas, adicionais, simples{produtoId:{qtd,preco,hist}}, tamanhos{ref,fator}, **ingredientes**{id:{nome,base:'kg'|'L'|'un',preco,emb,hist[{d,p,desc}],at}}, **apelidos**{assinatura→destino}, **lucroMinimo**. Os itens das fichas são `{id, ing, usa, meia?, terco?}`. `meia`/`terco` (só em sabores) = quantidade própria quando o sabor é ½ ou ⅓ da pizza (ex.: Portuguesa: usa 3 ovos, meia 2, terco 1); vazio ou ausente = divide sozinho (`qtdFrac` em `js/custos.js`). O antigo `fixo` (v20–v24) é convertido sozinho e removido.
 - `custosPedidos/{pedidoId}` (só admin): custo, venda e linhas gravados no momento do pedido.
@@ -104,6 +104,7 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
   - "Preparo médio" do dia.
 - **Cardápio:** CRUD; **preço por grupo** de sabores; fotos da **galeria** (o painel reduz o tamanho sozinho).
 - **💸 Ajustar valor** (26/11/2026): em "⋯ Mais opções" do card do pedido. Grava `pedidos/{id}.ajuste` sem mexer nos itens e no total. O card mostra o total riscado e "💸 Recebido"; o faturamento e o Balanço usam o recebido. Criado para o pedido do Ramon de 25/11 (2 pizzas de R$ 42; uma saiu por R$ 23,76 → recebido R$ 65,76). O **Eduardo vai aplicar sozinho** nesse pedido.
+- **🏪 Pedido no balcão** (27/11/2026): botão `#btn-balcao` na tela Pedidos abre `index.html?balcao=1` (nova aba). O site do cliente, com `BALCAO`, só libera se houver login do Firebase Auth **e** conseguir listar `clientes` (só o admin consegue); senão mostra "só funciona no aparelho logado no painel". Tela `#tela-balcao`: WhatsApp (opcional; se já cadastrado, preenche o nome) + nome. Faixa laranja `#faixa-balcao`. Carrinho/checkout em chaves separadas (`pz_carrinho_balcao`, `pz_checkout_balcao`); não toca em `pz_cliente`. Começa em retirada; o botão é "✅ Registrar pedido": grava pela mesma transação (`registrarPedido`) com `origem: 'balcao'`, status **novo** (toca o som no painel, decisão do Eduardo) e **não** abre o WhatsApp da pizzaria; a tela de sucesso tem "📲 Mandar resumo para o cliente" (WhatsApp do cliente) e "🏪 Novo pedido no balcão". **Fora do horário: deixa registrar com aviso** (decisão dele); o cliente comum continua bloqueado. **Sem número:** `clienteTel: ''`, sem cadastro em `clientes` (aceito pelo Eduardo); no painel aparece "(sem WhatsApp)", sem links de WhatsApp, e o botão depois de pronto é "🏁 Entregue ao cliente". As regras não mudaram: o admin já pode criar pedidos e clientes.
 - **Clientes:** tabela ordenável; etiquetas Novo, Recorrente, VIP e Sumido; histórico; **apagar cliente** (com opção de apagar os pedidos).
 - **Ajustes:** loja, horários, entrega e pagamento, **🏘️ bairros de entrega** (nome + taxa; adicionar, mudar e excluir salvam na hora, sem o botão Salvar), tempos de espera, mensagens do "pedido pronto", regras.
 
@@ -172,4 +173,4 @@ Veja `testes/LEIA-ME.md`. Resumo:
 - o site é servido localmente;
 - o Playwright faz o papel do cliente e do admin.
 
-São 14 baterias e ~345 verificações. Todas passavam na versão `?v=28`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.
+São 15 baterias e ~370 verificações. Todas passavam na versão `?v=29`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.

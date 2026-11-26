@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp, deleteField,
-} from './firebase-config.js?v=28';
+} from './firebase-config.js?v=29';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=28';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=28';
+import * as U from './utils.js?v=29';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=29';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -390,21 +390,24 @@ function pedidoHTML(p, comAcoes = true) {
   let principal = '';
   if (AGUARDANDO.includes(p.status)) {
     principal = `<button type="button" class="btn btn-pronto" data-pronto="${esc(p.id)}">✅ Pedido pronto</button>`;
+  } else if (['saiu', 'pronto'].includes(p.status) && !p.clienteTel) {
+    // balcão sem WhatsApp: não tem para quem mandar mensagem, só concluir
+    principal = `<button type="button" class="btn btn-pronto" data-avancar="${esc(p.id)}" data-para="concluido">🏁 Entregue ao cliente</button>`;
   } else if (['saiu', 'pronto'].includes(p.status)) {
     principal = `<a class="btn btn-whats" data-informar="${esc(p.id)}" href="${esc(linkInformar(p))}" target="_blank" rel="noopener">📲 Informar cliente</a>`;
-  } else if (p.status === 'concluido') {
+  } else if (p.status === 'concluido' && p.clienteTel) {
     principal = `<a class="btn btn-sec btn-peq" data-reavisar="${esc(p.id)}" href="${esc(linkInformar(p))}" target="_blank" rel="noopener">📲 Avisar de novo</a>`;
   }
   return `<article class="pedido-card ${esc(p.status)}">
     <div class="pc-topo">
-      <span class="pc-num">${U.codigoPedido(p.id)}</span>
+      <span class="pc-num">${U.codigoPedido(p.id)}</span>${p.origem === 'balcao' ? '<span class="tag tag-balcao">🏪 Balcão</span>' : ''}
       <span class="pc-hora">${U.fmtHoraMin(U.toDate(p.criadoEm))}${comAcoes ? '' : ` · ${U.fmtData(U.toDate(p.criadoEm))}`}</span>
       <span class="status st-${esc(p.status)}">${U.STATUS[p.status]?.nome || esc(p.status)}</span>
     </div>
     ${comAcoes && correndo ? `<div class="pc-espera" data-desde="${U.toDate(p.criadoEm).getTime()}" data-tipo="${esc(p.tipo)}"></div>` : ''}
     ${temposHTML(p)}
-    <div class="pc-cliente">${esc(p.clienteNome)}${apelidoHTML(p.clienteTel)} <small>${U.fmtTel(p.clienteTel)}</small></div>
-    ${comAcoes ? historicoClienteHTML(p.clienteTel, p.id) : ''}
+    <div class="pc-cliente">${esc(p.clienteNome)}${p.clienteTel ? `${apelidoHTML(p.clienteTel)} <small>${U.fmtTel(p.clienteTel)}</small>` : ' <small>(sem WhatsApp)</small>'}</div>
+    ${comAcoes && p.clienteTel ? historicoClienteHTML(p.clienteTel, p.id) : ''}
     <div class="pc-bloco">${esc(enderecoTexto(p))}</div>
     ${itensHTML(p.itens || [])}
     <div class="pc-bloco">${esc(pagamentoTexto(p))}</div>
@@ -415,7 +418,7 @@ function pedidoHTML(p, comAcoes = true) {
     <details class="pc-mais"><summary>⋯ Mais opções</summary>
       <label class="campo"><span>Mudar status / cancelar</span><select data-status="${esc(p.id)}" aria-label="Mudar status">${opcoes}</select></label>
       <button type="button" class="btn btn-sec btn-peq" data-ajustar="${esc(p.id)}">💸 ${p.ajuste ? 'Mudar o ajuste de valor' : 'Ajustar valor'}</button>
-      <a class="link" href="${esc(U.linkWhats(p.clienteTel))}" target="_blank" rel="noopener">Conversar no WhatsApp (sem mensagem)</a>
+      ${p.clienteTel ? `<a class="link" href="${esc(U.linkWhats(p.clienteTel))}" target="_blank" rel="noopener">Conversar no WhatsApp (sem mensagem)</a>` : ''}
     </details>` : ''}
   </article>`;
 }
@@ -464,8 +467,8 @@ async function mudarStatus(id, novo, extra = {}) {
   if (novo === 'concluido' && !p.concluidoEm) upd.concluidoEm = serverTimestamp();
   batch.update(doc(db, 'pedidos', id), upd);
   // pedido cancelado não conta nas estatísticas do cliente
-  const cli = doc(db, 'clientes', p.clienteTel);
-  if (novo === 'cancelado' && p.status !== 'cancelado') {
+  const cli = p.clienteTel ? doc(db, 'clientes', p.clienteTel) : null;   // balcão sem WhatsApp não tem cadastro
+  if (!cli) { /* nada a ajustar no cliente */ } else if (novo === 'cancelado' && p.status !== 'cancelado') {
     batch.set(cli, { totalPedidos: increment(-1), totalGasto: increment(-(p.total || 0)) }, { merge: true });
   } else if (p.status === 'cancelado' && novo !== 'cancelado') {
     batch.set(cli, { totalPedidos: increment(1), totalGasto: increment(p.total || 0) }, { merge: true });

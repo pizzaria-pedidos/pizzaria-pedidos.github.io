@@ -2,12 +2,16 @@
 //  Página do cliente: identificação → cardápio → montagem → carrinho → WhatsApp
 // =====================================================================
 import {
-  db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
+  app, db, configurado, doc, getDoc, getDocs, setDoc, updateDoc, onSnapshot, collection, query, limit,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=28';
-import * as U from './utils.js?v=28';
+} from './firebase-config.js?v=29';
+import * as U from './utils.js?v=29';
 
 const { esc, fmtBRL } = U;
+// 🏪 Modo balcão: o dono, logado no painel, faz o pedido pelo cliente que está na porta (ou no telefone).
+// Abre por index.html?balcao=1 e só funciona com o login de administrador.
+const BALCAO = new URLSearchParams(location.search).has('balcao');
+const K = BALCAO ? '_balcao' : '';   // carrinho do balcão separado do carrinho pessoal do celular
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
@@ -180,11 +184,12 @@ function renderTudo() {
 // =====================================================================
 async function iniciar() {
   if (!configurado) $('#aviso-config').hidden = false;
-  S.carrinho = U.lsGet('pz_carrinho', []);
-  S.checkout = { ...S.checkout, ...U.lsGet('pz_checkout', {}) };
+  S.carrinho = U.lsGet(`pz_carrinho${K}`, []);
+  S.checkout = { ...S.checkout, ...U.lsGet(`pz_checkout${K}`, {}) };
   S.checkout.endereco = S.checkout.endereco || {};
   ouvirCardapio();
   setInterval(renderTopo, 60_000); // status aberta/fechada muda com o relógio
+  if (BALCAO) { iniciarBalcao(); return; }
 
   const salvo = U.lsGet('pz_cliente', null);
   const telUrl = U.normTel(new URLSearchParams(location.search).get('tel') || '');
@@ -775,8 +780,8 @@ const novoUid = () => Date.now().toString(36) + Math.random().toString(36).slice
 // =====================================================================
 //  Carrinho
 // =====================================================================
-function salvarCarrinho() { U.lsSet('pz_carrinho', S.carrinho); }
-function salvarCheckout() { U.lsSet('pz_checkout', S.checkout); }
+function salvarCarrinho() { U.lsSet(`pz_carrinho${K}`, S.carrinho); }
+function salvarCheckout() { U.lsSet(`pz_checkout${K}`, S.checkout); }
 
 function sincronizarCarrinho() {
   let mudou = false;
@@ -873,11 +878,12 @@ function detalhesItem(it) {
 function estadoFinalizar() {
   const st = U.statusLoja(S.loja);
   if (!S.carrinho.length) return { ok: false, texto: 'Carrinho vazio' };
-  if (!st.aberta) return { ok: false, texto: st.abre ? `Loja fechada — abrimos ${st.abre}` : 'Loja fechada no momento' };
+  // no balcão o dono decide se atende fora do horário (só aparece um aviso)
+  if (!st.aberta && !BALCAO) return { ok: false, texto: st.abre ? `Loja fechada — abrimos ${st.abre}` : 'Loja fechada no momento' };
   if (S.checkout.tipo === 'entrega' && bairroEscolhido()?.fora) return { ok: false, texto: 'Não entregamos nesse bairro' };
   if (S.carrinho.some((it) => it.indisponivel)) return { ok: false, texto: 'Remova os itens indisponíveis' };
   if (S.loja.pedidoMinimo && subtotal() < S.loja.pedidoMinimo) return { ok: false, texto: `Pedido mínimo: ${fmtBRL(S.loja.pedidoMinimo)}` };
-  return { ok: true, texto: 'Finalizar pedido no WhatsApp' };
+  return { ok: true, texto: BALCAO ? '✅ Registrar pedido' : 'Finalizar pedido no WhatsApp' };
 }
 
 function renderCarrinho() {
@@ -937,6 +943,7 @@ function renderCarrinho() {
     ${entrega ? `<div class="resumo-linha"><span>Taxa de entrega</span><span>${bairroEscolhido()?.fora ? 'não entregamos' : U.bairrosLoja(l).length && !bairroEscolhido() ? 'escolha o bairro' : tx ? fmtBRL(tx) : 'Grátis'}</span></div>` : ''}
     <div class="resumo-total"><span>Total</span><span>${fmtBRL(sub + tx)}</span></div>
     ${U.tempoEspera(l, S.checkout.tipo) ? `<p class="resumo-tempo">⏱️ Tempo de espera estimado: <b>${esc(U.tempoEspera(l, S.checkout.tipo))}</b></p>` : ''}
+    ${BALCAO && !U.statusLoja(l).aberta ? '<p class="alerta">⚠️ Loja fechada pelo horário. O pedido será registrado mesmo assim: você decide se atende.</p>' : ''}
     ${faltaMin ? `<p class="alerta">Pedido mínimo de ${fmtBRL(l.pedidoMinimo)}. Faltam ${fmtBRL(faltaMin)}.</p>` : ''}`;
 
   const est = estadoFinalizar();
@@ -1029,6 +1036,7 @@ function montarPedido() {
       total: U.round2(it.precoUnit * it.qtd),
     })),
     tipo: S.checkout.tipo,
+    ...(BALCAO ? { origem: 'balcao' } : {}),
     endereco: entrega
       ? {
           // com lista de bairros não se pede rua nem complemento
@@ -1050,14 +1058,16 @@ function montarPedido() {
 async function registrarPedido(pedido) {
   return runTransaction(db, async (tx) => {
     const contRef = doc(db, 'config', 'contador');
-    const cliRef = doc(db, 'clientes', pedido.clienteTel);
+    // balcão sem número: registra o pedido, mas não há cadastro de cliente (o cadastro é pelo número)
+    const cliRef = pedido.clienteTel ? doc(db, 'clientes', pedido.clienteTel) : null;
     const contSnap = await tx.get(contRef);
-    const cliSnap = await tx.get(cliRef);
+    const cliSnap = cliRef ? await tx.get(cliRef) : null;
     const numero = (contSnap.exists() ? contSnap.data().ultimoNumero || 0 : 0) + 1;
     const pedRef = doc(collection(db, 'pedidos'));
 
     tx.set(contRef, { ultimoNumero: numero });
     tx.set(pedRef, { ...pedido, numero, criadoEm: serverTimestamp() });
+    if (!cliRef) return { numero, codigo: U.codigoPedido(pedRef.id), totalPedidos: 0, desde: new Date() };
 
     const cli = cliSnap.exists() ? cliSnap.data() : null;
     const totalPedidos = (cli?.totalPedidos || 0) + 1;
@@ -1143,17 +1153,18 @@ $('#btn-finalizar').addEventListener('click', async () => {
   if (pedido.troco && pedido.troco < pedido.total) {
     return erroCheckout(`O troco precisa ser maior que o total (${fmtBRL(pedido.total)}).`, $('#troco'));
   }
-  if (!S.loja.whatsapp) return erroCheckout('A pizzaria ainda não configurou o WhatsApp. Tente mais tarde.');
+  if (!S.loja.whatsapp && !BALCAO) return erroCheckout('A pizzaria ainda não configurou o WhatsApp. Tente mais tarde.');
 
   const btn = $('#btn-finalizar');
   btn.disabled = true;
-  btn.textContent = 'Enviando pedido…';
+  btn.textContent = BALCAO ? 'Registrando…' : 'Enviando pedido…';
 
   let info;
   try {
     info = await U.comTimeout(registrarPedido(pedido), 15000);
   } catch (e) {
     console.error('Falha ao registrar pedido', e);
+    if (BALCAO) { renderCarrinho(); return erroCheckout('Não foi possível registrar o pedido. Confira a internet e toque de novo.'); }
     const seguir = confirm('Não conseguimos registrar o pedido no sistema (verifique sua internet).\n\nDeseja enviar mesmo assim pelo WhatsApp?');
     if (!seguir) { renderCarrinho(); return; }
     info = { numero: null, totalPedidos: (S.cliente.totalPedidos || 0) + 1, desde: U.toDate(S.cliente.primeiroPedidoEm) || new Date() };
@@ -1164,6 +1175,7 @@ $('#btn-finalizar').addEventListener('click', async () => {
   if (!S.cliente.primeiroPedidoEm) S.cliente.primeiroPedidoEm = new Date();
   if (pedido.endereco) S.cliente.ultimoEndereco = pedido.endereco;
 
+  if (BALCAO) { sucessoBalcao(pedido, info); return; }
   const url = U.linkWhats(S.loja.whatsapp, montarMensagem(pedido, info));
   S.carrinho = [];
   salvarCarrinho();
@@ -1262,3 +1274,120 @@ $('#modal-info').addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharCamada(); });
 
 iniciar();
+
+// =====================================================================
+//  🏪 Pedido no balcão (index.html?balcao=1) — só para o dono logado no painel
+// =====================================================================
+async function iniciarBalcao() {
+  document.body.classList.add('modo-balcao');
+  $('#app').hidden = true;
+  $('#tela-boasvindas').hidden = true;
+  $('#tela-balcao').hidden = false;
+  const negar = () => {
+    $('#bc-msg').innerHTML = '🔒 O <b>pedido no balcão</b> só funciona no aparelho que está <b>logado no painel</b> da pizzaria.<br>Abra o painel, entre com o seu e-mail e senha e toque em <b>🏪 Pedido no balcão</b>.';
+  };
+  try {
+    // o login do painel fica guardado no navegador e vale aqui também (mesmo site)
+    const { getAuth, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
+    const auth = getAuth(app);
+    const user = await new Promise((ok) => { const off = onAuthStateChanged(auth, (u) => { off(); ok(u); }); });
+    if (!user) return negar();
+    // confirma que é o administrador: só ele consegue listar os clientes
+    await U.comTimeout(getDocs(query(collection(db, 'clientes'), limit(1))), 10000);
+  } catch (e) {
+    console.warn('Balcão negado', e);
+    return negar();
+  }
+  novoClienteBalcao();
+}
+function novoClienteBalcao() {
+  S.cliente = null;
+  S.carrinho = [];
+  salvarCarrinho();
+  S.checkout = { tipo: 'retirada', endereco: {}, pagamento: '', troco: '' };
+  salvarCheckout();
+  renderBarra();
+  $('#app').hidden = true;
+  $('#tela-sucesso').hidden = true;
+  $('#tela-balcao').hidden = false;
+  $('#bc-msg').innerHTML = 'Quem é o cliente? O <b>WhatsApp é opcional</b>, mas com ele o cliente fica cadastrado e os pedidos dele contam no histórico.';
+  $('#form-balcao').hidden = false;
+  $('#bc-tel').value = '';
+  $('#bc-nome').value = '';
+  $('#bc-erro').textContent = '';
+  $('#bc-achado').hidden = true;
+  setTimeout(() => $('#bc-tel').focus(), 50);
+}
+let bcDados = null;   // cadastro encontrado pelo número digitado
+async function procurarClienteBalcao() {
+  const tel = U.normTel($('#bc-tel').value);
+  bcDados = null;
+  $('#bc-achado').hidden = true;
+  if (!tel) return;
+  try {
+    const snap = await U.comTimeout(getDoc(doc(db, 'clientes', tel)), 6000);
+    if (U.normTel($('#bc-tel').value) !== tel) return;   // mudou o número enquanto buscava
+    if (snap.exists() && snap.data().nome) {
+      bcDados = snap.data();
+      if (!$('#bc-nome').value.trim()) $('#bc-nome').value = bcDados.nome;
+      const n = bcDados.totalPedidos || 0;
+      $('#bc-achado').innerHTML = `⭐ Já é cliente: <b>${esc(bcDados.nome)}</b>${bcDados.apelido ? ` “${esc(bcDados.apelido)}”` : ''} · ${n} pedido${n === 1 ? '' : 's'}`;
+    } else {
+      $('#bc-achado').textContent = '🆕 Cliente novo: vai ficar cadastrado com este número.';
+    }
+    $('#bc-achado').hidden = false;
+  } catch (e) { console.warn(e); }
+}
+$('#bc-tel').addEventListener('input', (e) => {
+  e.target.value = U.mascaraTel(e.target.value);
+  $('#campo-bc-tel').classList.remove('invalido');
+  if (U.normTel(e.target.value)) procurarClienteBalcao(); else { bcDados = null; $('#bc-achado').hidden = true; }
+});
+$('#form-balcao').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const txt = $('#bc-tel').value.trim();
+  const tel = txt ? U.normTel(txt) : '';
+  if (txt && !tel) { $('#campo-bc-tel').classList.add('invalido'); $('#bc-erro').textContent = 'WhatsApp inválido. Use DDD + número, ou deixe em branco.'; return; }
+  const nome = $('#bc-nome').value.trim().replace(/\s+/g, ' ');
+  if (nome.length < 2) { $('#campo-bc-nome').classList.add('invalido'); $('#bc-erro').textContent = 'Digite o nome do cliente.'; $('#bc-nome').focus(); return; }
+  if (tel && !bcDados) await procurarClienteBalcao();
+  const dados = tel ? bcDados || { totalPedidos: 0 } : {};
+  S.cliente = { ...dados, tel, nome, apelido: dados.apelido || '' };
+  $('#tela-balcao').hidden = true;
+  $('#app').hidden = false;
+  $('#primeiro-nome').textContent = chamarPor(S.cliente);
+  $('#faixa-balcao').hidden = false;
+  $('#faixa-balcao').innerHTML = `🏪 <b>MODO BALCÃO</b> · atendendo: <b>${esc(nome)}</b>${tel ? ` · ${esc(U.fmtTel(tel))}` : ' · sem WhatsApp'}
+    <button type="button" class="link" id="bc-trocar">trocar cliente</button> · <a class="link" href="admin.html">painel</a>`;
+  preencherEnderecoSalvo();
+  renderTudo();
+  window.scrollTo({ top: 0 });
+});
+$('#bc-nome').addEventListener('input', () => { $('#campo-bc-nome').classList.remove('invalido'); $('#bc-erro').textContent = ''; });
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#bc-trocar')) {
+    if (S.carrinho.length && !confirm('Trocar de cliente? O carrinho atual vai ser esvaziado.')) return;
+    novoClienteBalcao();
+  }
+  if (e.target.closest('#bc-novo')) novoClienteBalcao();
+});
+
+function sucessoBalcao(pedido, info) {
+  fecharTodasCamadas();
+  const tel = pedido.clienteTel;
+  $('#tela-sucesso').hidden = false;
+  $('#tela-sucesso h2').textContent = 'Pedido registrado!';
+  $('#sucesso-texto').innerHTML = `Código <b>${esc(info.codigo || '')}</b> · ${esc(pedido.clienteNome)} · ${fmtBRL(pedido.total)}.<br>Já está na lista de <b>Pedidos</b> do painel.`;
+  const link = $('#sucesso-link');
+  link.hidden = !tel;
+  if (tel) {
+    link.href = U.linkWhats(tel, montarMensagem(pedido, info));
+    link.textContent = '📲 Mandar resumo para o cliente';
+    link.target = '_blank';
+  }
+  $('#sucesso-voltar').hidden = true;
+  if (!$('#bc-novo')) $('#sucesso-voltar').insertAdjacentHTML('afterend', '<button class="btn btn-primario btn-bloco btn-grande" type="button" id="bc-novo">🏪 Novo pedido no balcão</button><a class="btn btn-sec btn-bloco" id="bc-painel" href="admin.html">Voltar ao painel</a>');
+  S.carrinho = [];
+  salvarCarrinho();
+  renderBarra();
+}
