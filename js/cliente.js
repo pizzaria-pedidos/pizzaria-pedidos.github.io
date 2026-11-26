@@ -4,8 +4,8 @@
 import {
   db, configurado, doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=27';
-import * as U from './utils.js?v=27';
+} from './firebase-config.js?v=28';
+import * as U from './utils.js?v=28';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -817,8 +817,14 @@ function renderBairro() {
   }
   const b = bairroEscolhido();
   $('#campo-bairro-sel').hidden = !lista.length;
-  // com lista de bairros, o bairro vem da lista (o campo de digitar só existe sem lista)
+  // com lista de bairros: só Bairro (lista) → Número da casa → Ponto de referência (sem rua e complemento)
   $('#campo-bairro-txt').hidden = !!lista.length;
+  $('#campo-rua').hidden = !!lista.length;
+  $('#campo-complemento').hidden = !!lista.length;
+  $('#rotulo-numero').textContent = lista.length ? 'Número da casa *' : 'Número *';
+  const linhaNum = $('#campo-bairro-txt').parentElement;   // sem o bairro digitado, o número ocupa a linha toda
+  linhaNum.classList.toggle('linha-campos', !lista.length);
+  linhaNum.classList.toggle('l-1-2', !lista.length);
   if (lista.length) {
     const sel = S.checkout.endereco?.bairroId || '';
     $('#bairro-sel').innerHTML = `<option value="">Escolha seu bairro…</option>${lista.map((x) =>
@@ -1025,8 +1031,9 @@ function montarPedido() {
     tipo: S.checkout.tipo,
     endereco: entrega
       ? {
-          rua: (e.rua || '').trim(), numero: (e.numero || '').trim(), bairro: (e.bairro || '').trim(),
-          complemento: (e.complemento || '').trim(), referencia: (e.referencia || '').trim(),
+          // com lista de bairros não se pede rua nem complemento
+          rua: U.bairrosLoja(S.loja).length ? '' : (e.rua || '').trim(), numero: (e.numero || '').trim(), bairro: (e.bairro || '').trim(),
+          complemento: U.bairrosLoja(S.loja).length ? '' : (e.complemento || '').trim(), referencia: (e.referencia || '').trim(),
           ...(U.bairrosLoja(S.loja).length && e.bairroId ? { bairroId: e.bairroId } : {}),
         }
       : null,
@@ -1096,7 +1103,7 @@ function montarMensagem(p, info) {
   if (p.tipo === 'entrega') {
     const e = p.endereco;
     L.push('🛵 *Entrega*');
-    L.push(`📍 ${e.rua}, ${e.numero} — ${e.bairro}`);
+    L.push(e.rua ? `📍 ${e.rua}, ${e.numero} — ${e.bairro}` : `📍 ${e.bairro}, nº ${e.numero}`);
     const extra = [e.complemento && `Complemento: ${e.complemento}`, e.referencia && `Ref.: ${e.referencia}`].filter(Boolean);
     if (extra.length) L.push(`   ${extra.join(' · ')}`);
   } else {
@@ -1122,9 +1129,9 @@ $('#btn-finalizar').addEventListener('click', async () => {
   if (!est.ok) return erroCheckout(est.texto);
   if (S.checkout.tipo === 'entrega') {
     if (U.bairrosLoja(S.loja).length && !bairroEscolhido()) return erroCheckout('Escolha o seu bairro para a entrega.', $('#bairro-sel'));
-    for (const k of ['rua', 'numero', 'bairro']) {
+    for (const k of U.bairrosLoja(S.loja).length ? ['numero'] : ['rua', 'numero', 'bairro']) {
       if (!(S.checkout.endereco?.[k] || '').trim()) {
-        return erroCheckout(`Informe ${k === 'numero' ? 'o número' : k === 'rua' ? 'a rua' : 'o bairro'} para a entrega.`, $(`[data-end="${k}"]`));
+        return erroCheckout(`Informe ${k === 'numero' ? 'o número da casa' : k === 'rua' ? 'a rua' : 'o bairro'} para a entrega.`, $(`[data-end="${k}"]`));
       }
     }
   }

@@ -7,7 +7,7 @@ const { chromium, devices } = createRequire(import.meta.url)(process.env.PLAYWRI
 const DIR = path.dirname(new URL(import.meta.url).pathname);
 const SITE = 'http://127.0.0.1:5500';
 const FB = path.join(DIR, 'node_modules/firebase');
-const V = 'v=27';
+const V = 'v=28';
 const shots = path.join(DIR, 'shots-bairros');
 fs.mkdirSync(shots, { recursive: true });
 let ok = 0, falhas = 0;
@@ -123,8 +123,10 @@ check(await cli.isVisible('#bairro-sel') && !(await cli.isVisible('[data-end="ba
 const opcoes = await cli.$$eval('#bairro-sel option', (os) => os.map((o) => o.textContent.trim().replace(/\u00a0/g, ' ')));
 check(opcoes.join('|') === 'Escolha seu bairro…|Itapuã — R$ 8,00|Stella Maris — R$ 10,50|❌ Meu bairro não está na lista', `opções: ${opcoes.join(' | ')}`);
 check((await cli.textContent('#resumo')).includes('escolha o bairro'), 'resumo: "Taxa de entrega: escolha o bairro"');
-await cli.fill('[data-end="rua"]', 'Rua das Flores');
+const campos = await cli.$$eval('#campos-entrega .campo', (els) => els.filter((e) => !e.hidden && e.offsetParent).map((e) => e.querySelector('span').textContent.trim()));
+check(campos.join('|') === 'Bairro *|Número da casa *|Ponto de referência', `só 3 campos, nesta ordem: ${campos.join(' → ')}`);
 await cli.fill('[data-end="numero"]', '10');
+await cli.fill('[data-end="referencia"]', 'Perto da padaria');
 await cli.locator('#pagamentos label', { hasText: 'Pix' }).click();
 await cli.click('#btn-finalizar');
 check((await cli.textContent('#checkout-erro')).includes('Escolha o seu bairro'), 'sem bairro: "Escolha o seu bairro para a entrega."');
@@ -137,9 +139,9 @@ await cli.screenshot({ path: `${shots}/02-cliente-bairro.png` });
 await cli.click('#btn-finalizar');
 await cli.waitForTimeout(2500);
 let msg = url ? decodeURIComponent(url.split('text=')[1]).replace(/\u00a0/g, ' ') : '';
-check(msg.includes('📍 Rua das Flores, 10 — Itapuã') && msg.includes('Taxa de entrega: R$ 8,00') && !msg.includes('ATENÇÃO'), 'WhatsApp: "— Itapuã" e "Taxa de entrega: R$ 8,00"');
+check(msg.includes('📍 Itapuã, nº 10') && msg.includes('Ref.: Perto da padaria') && msg.includes('Taxa de entrega: R$ 8,00'), 'WhatsApp: "📍 Itapuã, nº 10", "Ref.: Perto da padaria" e "Taxa de entrega: R$ 8,00"');
 let [p1] = await pedidos();
-check(p1.taxaEntrega === 8 && p1.total === 22 && p1.endereco.bairro === 'Itapuã' && !p1.endereco.foraDaLista, 'pedido gravado com taxa 8 e bairro Itapuã');
+check(p1.taxaEntrega === 8 && p1.total === 22 && p1.endereco.bairro === 'Itapuã' && p1.endereco.rua === '' && p1.endereco.numero === '10', 'pedido gravado com taxa 8, bairro Itapuã, nº 10 (sem rua)');
 
 console.log('\n3) Próximo pedido: o bairro já vem escolhido');
 await carrinhoComRefri();
@@ -177,7 +179,7 @@ await adm.evaluate(async (V) => {
 }, V);
 await carrinhoComRefri();
 await cli.locator('#tela-carrinho label', { hasText: 'Entrega' }).click();
-check(!(await cli.isVisible('#bairro-sel')) && await cli.isVisible('[data-end="bairro"]'), 'sem lista: o cliente digita o bairro');
+check(!(await cli.isVisible('#bairro-sel')) && await cli.isVisible('[data-end="bairro"]') && await cli.isVisible('[data-end="rua"]'), 'sem lista: volta o formulário completo (rua e bairro digitados)');
 check((await cli.textContent('#resumo')).includes('5,00'), 'taxa única do painel (R$ 5,00)');
 
 console.log('\n7) Horário de Salvador: fecha e abre sozinha');

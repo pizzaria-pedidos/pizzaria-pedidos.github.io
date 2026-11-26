@@ -7,7 +7,7 @@ const { chromium, devices } = createRequire(import.meta.url)(process.env.PLAYWRI
 const DIR = path.dirname(new URL(import.meta.url).pathname);
 const SITE = 'http://127.0.0.1:5500';
 const FB = path.join(DIR, 'node_modules/firebase');
-const V = 'v=27';
+const V = 'v=28';
 const shots = path.join(DIR, 'shots-ovo');
 fs.mkdirSync(shots, { recursive: true });
 let ok = 0, falhas = 0;
@@ -104,6 +104,7 @@ console.log('\n3) Ovos da Portuguesa: 3 na inteira, 2 na metade, 1 no terço');
 const iOvo = await adm.$$eval('#v-custos select[data-ci="ing"]', (els) => els.findIndex((s) => s.options[s.selectedIndex].text === 'Ovo'));
 await adm.click(`#v-custos [data-cu="frAbrir"][data-i="${iOvo}"]`);
 await adm.waitForSelector(`#v-custos input[data-f="meia"][data-i="${iOvo}"]`);
+await adm.waitForTimeout(200);   // o painel põe o cursor na metade logo depois de abrir os campos
 check((await adm.getAttribute(`#v-custos input[data-f="meia"][data-i="${iOvo}"]`, 'placeholder')) === '1,5', 'campo da metade mostra a conta automática (1,5) como dica');
 await adm.fill(`#v-custos input[data-f="meia"][data-i="${iOvo}"]`, '2');
 await adm.fill(`#v-custos input[data-f="terco"][data-i="${iOvo}"]`, '1');

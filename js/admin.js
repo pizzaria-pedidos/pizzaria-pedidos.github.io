@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp, deleteField,
-} from './firebase-config.js?v=27';
+} from './firebase-config.js?v=28';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=27';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=27';
+import * as U from './utils.js?v=28';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=28';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -306,7 +306,7 @@ function itensHTML(itens) {
 function enderecoTexto(p) {
   if (p.tipo !== 'entrega' || !p.endereco) return '🏃 Retirada no local';
   const e = p.endereco;
-  return `🛵 ${e.rua}, ${e.numero} — ${e.bairro}${e.complemento ? ` · ${e.complemento}` : ''}${e.referencia ? ` · Ref.: ${e.referencia}` : ''}`;
+  return `🛵 ${e.rua ? `${e.rua}, ${e.numero} — ${e.bairro}` : `${e.bairro}, nº ${e.numero}`}${e.complemento ? ` · ${e.complemento}` : ''}${e.referencia ? ` · Ref.: ${e.referencia}` : ''}`;
 }
 function pagamentoTexto(p) {
   if (p.pagamento === 'dinheiro') return `💵 Dinheiro${p.troco ? ` (troco p/ ${fmtBRL(p.troco)})` : ' (sem troco)'}`;
@@ -1292,7 +1292,7 @@ async function abrirCliente(id) {
     </div>
     <div class="pc-bloco" style="margin-bottom:8px">📱 ${U.fmtTel(r.telefone)}<br>
       📅 Cliente desde ${U.fmtData(r.prim || U.toDate(r.criadoEm))} · último pedido ${U.fmtData(r.ult)}</div>
-    <div class="pc-bloco" style="margin-bottom:16px">📍 ${e ? esc(`${e.rua}, ${e.numero} — ${e.bairro}${e.complemento ? ` · ${e.complemento}` : ''}${e.referencia ? ` · Ref.: ${e.referencia}` : ''}`) : 'Nenhum endereço salvo'}</div>
+    <div class="pc-bloco" style="margin-bottom:16px">📍 ${e ? esc(enderecoTexto({ tipo: 'entrega', endereco: e }).replace(/^🛵 /, '')) : 'Nenhum endereço salvo'}</div>
     <h3 style="margin-bottom:10px">Histórico de pedidos</h3>
     <div id="cli-historico" class="lista-pedidos" style="grid-template-columns:1fr"><span class="sk sk-card"></span></div>`,
     `<button type="button" class="btn btn-perigo" id="cli-apagar">🗑️ Apagar cliente</button>

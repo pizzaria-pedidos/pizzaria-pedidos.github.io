@@ -91,6 +91,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
   - **🏘️ Bairros de entrega com taxa automática** (Ajustes → Entrega e pagamento). O cliente escolhe o bairro numa lista. **Só dá para pedir entrega nos bairros da lista**: quem marca "Meu bairro não está na lista" não consegue finalizar com entrega e é orientado a retirar no local ou falar no WhatsApp (v27).
   - **Horário automático de verdade:** sempre na hora de Salvador, e o "Fechar agora" vale só até a próxima abertura (depois a loja abre sozinha).
   - Versão dos arquivos `?v=26`; com o bloqueio de bairro fora da lista, `?v=27`.
+  - Com bairros cadastrados, a tela de entrega pede **só Bairro → Número da casa → Ponto de referência** (sem Rua e Complemento). Versão dos arquivos `?v=28`.
 - **Teste de 25/11/2026 (desfeito):** a `?v=23` mostrava a foto da bebida sempre inteira, com sobras brancas. O Eduardo não gostou, e a `?v=24` voltou ao jeito anterior: a foto preenche o quadro todo, como nas pizzas.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
@@ -244,7 +245,8 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
 - **🏘️ Bairros de entrega:** em **Ajustes → 🛵 Entrega e pagamento → 🏘️ Bairros de entrega**:
   1. Digite o **nome do bairro** e a **taxa** (ex.: Itapuã, 8) e toque em **+ Adicionar**. Salva na hora, sem precisar do botão Salvar.
   2. Para mudar uma taxa ou um nome, edite o campo e saia dele. Para excluir, toque no **✕**.
-  - O cliente, ao escolher **Entrega**, vê a lista **"Escolha seu bairro…"** com a taxa de cada um. A taxa entra sozinha no total e na mensagem do WhatsApp.
+  - O cliente, ao escolher **Entrega**, preenche só 3 coisas, nesta ordem: **Bairro** (lista "Escolha seu bairro…" com a taxa de cada um), **Número da casa** e **Ponto de referência** (opcional). Rua e Complemento não aparecem. A mensagem do WhatsApp mostra "📍 Itapuã, nº 10" e "Ref.: …".
+  - Ao escolher o bairro, a taxa entra sozinha no total e na mensagem do WhatsApp.
   - Última opção da lista: **"❌ Meu bairro não está na lista"**. Aparece **"😕 Ainda não entregamos no seu bairro. Só entregamos nos bairros da lista. Você pode escolher 🏃 Retirar no local ou 💬 falar com a gente no WhatsApp"**, e o botão de finalizar fica bloqueado ("Não entregamos nesse bairro"). **Nenhum pedido de entrega é enviado para bairro fora da lista.** O link do WhatsApp só abre uma conversa, sem pedido.
   - **Cadastre só os bairros onde você entrega.**
   - Sem nenhum bairro cadastrado, vale a **taxa única** e o cliente digita o bairro, como antes.
@@ -337,5 +339,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=27` → `?v=28` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=28` → `?v=29` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

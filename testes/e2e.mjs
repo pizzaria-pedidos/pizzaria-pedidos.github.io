@@ -220,15 +220,15 @@ check(st.includes('Saiu para entrega'), '✅ Pedido pronto → Saiu para entrega
 
 console.log('\nRegras de segurança (como cliente anônimo)');
 const tentar = (fn) => cli.evaluate(fn).catch((e) => 'ERRO ' + e.message);
-const r1 = await tentar(async () => { const m = await import('/js/firebase-config.js?v=27'); try { await m.getDocs(m.collection(m.db, 'pedidos')); return 'permitido'; } catch (e) { return e.code; } });
+const r1 = await tentar(async () => { const m = await import('/js/firebase-config.js?v=28'); try { await m.getDocs(m.collection(m.db, 'pedidos')); return 'permitido'; } catch (e) { return e.code; } });
 check(r1 === 'permission-denied', `listar todos os pedidos negado (${r1})`);
-const r2 = await tentar(async () => { const m = await import('/js/firebase-config.js?v=27'); try { await m.updateDoc(m.doc(m.db, 'clientes', '5571999998888'), { totalPedidos: 100 }); return 'permitido'; } catch (e) { return e.code; } });
+const r2 = await tentar(async () => { const m = await import('/js/firebase-config.js?v=28'); try { await m.updateDoc(m.doc(m.db, 'clientes', '5571999998888'), { totalPedidos: 100 }); return 'permitido'; } catch (e) { return e.code; } });
 check(r2 === 'permission-denied', `cliente inflar totalPedidos negado (${r2})`);
-const r3 = await tentar(async () => { const m = await import('/js/firebase-config.js?v=27'); try { await m.setDoc(m.doc(m.db, 'produtos', 'hack'), { nome: 'x' }); return 'permitido'; } catch (e) { return e.code; } });
+const r3 = await tentar(async () => { const m = await import('/js/firebase-config.js?v=28'); try { await m.setDoc(m.doc(m.db, 'produtos', 'hack'), { nome: 'x' }); return 'permitido'; } catch (e) { return e.code; } });
 check(r3 === 'permission-denied', `cliente editar cardápio negado (${r3})`);
-const r4 = await tentar(async () => { const m = await import('/js/firebase-config.js?v=27'); try { await m.addDoc(m.collection(m.db, 'pedidos'), { numero: 999, status: 'concluido' }); return 'permitido'; } catch (e) { return e.code; } });
+const r4 = await tentar(async () => { const m = await import('/js/firebase-config.js?v=28'); try { await m.addDoc(m.collection(m.db, 'pedidos'), { numero: 999, status: 'concluido' }); return 'permitido'; } catch (e) { return e.code; } });
 check(r4 === 'permission-denied', `pedido forjado negado (${r4})`);
-const r5 = await tentar(async () => { const m = await import('/js/firebase-config.js?v=27'); try { await m.getDocs(m.collection(m.db, 'clientes')); return 'permitido'; } catch (e) { return e.code; } });
+const r5 = await tentar(async () => { const m = await import('/js/firebase-config.js?v=28'); try { await m.getDocs(m.collection(m.db, 'clientes')); return 'permitido'; } catch (e) { return e.code; } });
 check(r5 === 'permission-denied', `listar clientes negado (${r5})`);
 
 // Link personalizado ?tel= num celular "novo"

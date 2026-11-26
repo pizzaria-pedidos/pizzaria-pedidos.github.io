@@ -56,7 +56,7 @@ CONTEXTO.md       este arquivo
 testes/           testes automáticos (emulador Firebase + Playwright). Veja testes/LEIA-ME.md
 ```
 
-⚠️ **Versão dos arquivos: hoje é `?v=27`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=28`) **em todos os lugares**. Depois rode `python3 testes/versao.py 28` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
+⚠️ **Versão dos arquivos: hoje é `?v=28`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=29`) **em todos os lugares**. Depois rode `python3 testes/versao.py 29` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
 
 ## 4. Dados no Firestore
 
@@ -86,7 +86,7 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
 - Seção **"Nossos sabores"** com a descrição de cada sabor, separada por grupo.
 - **Bebida dentro da tela da pizza** (25/11/2026): depois de Borda e Adicionais, a seção 🥤 Bebida lista os produtos simples das categorias com "bebida" no nome (função `bebidasParaPizza` em `js/cliente.js`). Cada bebida vira uma linha simples no carrinho. Botões **Adicionar** e **Adicionar e finalizar ➜** (`#mp-fin`), que abre o carrinho direto. A quantidade de pizzas não multiplica as bebidas. **Foto das bebidas:** preenche o quadro (`cover`), como nas pizzas. Mostrar a foto inteira com sobras brancas (`contain`) foi testado na v23 e o Eduardo **não gostou**: não refazer.
 - Carrinho; entrega ou retirada (a entrega pode estar desligada no dia); Pix, Cartão ou Dinheiro com troco.
-- **🏘️ Bairros** (26/11/2026): se houver bairros em `config/loja.bairros`, o cliente escolhe numa lista e a taxa entra sozinha (`taxa()`, `bairroEscolhido()`, `renderBairro()` em `js/cliente.js`). A última opção é **"❌ Meu bairro não está na lista"**: aparece "😕 Ainda não entregamos no seu bairro… Retirar no local ou falar com a gente no WhatsApp" (link sem pedido) e o finalizar fica **bloqueado** ("Não entregamos nesse bairro", em `estadoFinalizar`). **O Eduardo só entrega nos bairros da lista** (área limitada de Salvador): nunca deixar sair pedido de entrega para bairro fora dela. Sem bairros cadastrados: o cliente digita o bairro e vale a taxa única.
+- **🏘️ Bairros** (26/11/2026): se houver bairros em `config/loja.bairros`, o cliente escolhe numa lista e a taxa entra sozinha (`taxa()`, `bairroEscolhido()`, `renderBairro()` em `js/cliente.js`). A última opção é **"❌ Meu bairro não está na lista"**: aparece "😕 Ainda não entregamos no seu bairro… Retirar no local ou falar com a gente no WhatsApp" (link sem pedido) e o finalizar fica **bloqueado** ("Não entregamos nesse bairro", em `estadoFinalizar`). **O Eduardo só entrega nos bairros da lista** (área limitada de Salvador): nunca deixar sair pedido de entrega para bairro fora dela. Com bairros cadastrados, o formulário de entrega é **só Bairro (lista) → Número da casa → Ponto de referência** (rua e complemento escondidos e gravados vazios; a mensagem sai "📍 Bairro, nº 10"); pedido do Eduardo em 26/11 (os "bairros" dele podem ser ruas/localidades, ex.: "Rua de João"). Sem bairros cadastrados: o formulário completo de antes, com o bairro digitado e a taxa única.
 - **🕒 Horário:** a loja abre e fecha **sozinha** pelo horário do painel, sempre na **hora de Salvador (UTC−3)**, nunca no fuso do celular (`statusLoja` em `js/utils.js`). Fora do horário, o botão de finalizar fica bloqueado ("Loja fechada — abrimos hoje às 18h").
 - Mensagem do WhatsApp:
   - começa com "🍕 *Código do seu pedido: K7Q2M9*" (6 caracteres, sem 0/O/1/I/L);
@@ -172,4 +172,4 @@ Veja `testes/LEIA-ME.md`. Resumo:
 - o site é servido localmente;
 - o Playwright faz o papel do cliente e do admin.
 
-São 14 baterias e ~345 verificações. Todas passavam na versão `?v=27`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.
+São 14 baterias e ~345 verificações. Todas passavam na versão `?v=28`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.
