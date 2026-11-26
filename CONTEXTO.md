@@ -156,6 +156,7 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
 ## 9. Pendências e próximos passos possíveis
 
 - **Reabrir a loja uma vez no painel:** em 26/11 a loja estava com `fechadoManual: true` **sem data** (botão antigo). Até ele tocar em "toque para reabrir", ela não abre sozinha. Depois disso, o horário automático funciona.
+- **Gramas conferidas em 26/11 (tabela do Eduardo):** Calabresa 120 g, Frango 110 g, Cebola 80 g (dividem na ½ e no ⅓); Molho 45 g e Muçarela 150 g na Base; Catupiry da borda 100 g. O Claude gravou Molho 40→45 e Frango 80→110 a pedido dele; o resto já estava assim. O recheio do sabor Mussarela (160 g, além dos 150 g da base) não estava na tabela e ficou como está.
 - **Preencher de novo o que se perdeu em 26/11:** custo do fardo da Pepsi 1L e da Antarctica 1L (Fichas → Bebidas e outros) e o preço novo da Calabresa e do Frango (🧾 Ingredientes). O pedido do Chacal (balcão, 26/11) ficou com "sem custo" na Antarctica e "sem ficha" em Milho e Atum c/ Catupiry.
 - **Cadastrar os bairros** de entrega em Ajustes → Entrega e pagamento.
 - **💸 Ajuste do pedido do Ramon (25/11):** ele vai aplicar recebido R$ 65,76, motivo "divergência no pedido".
