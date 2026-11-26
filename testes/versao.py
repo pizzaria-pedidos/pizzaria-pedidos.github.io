@@ -2,7 +2,7 @@
 import os, re, sys
 D = os.path.dirname(os.path.abspath(__file__))
 V = sys.argv[1]
-for f in ['e2e.mjs', 'e2e-custos.mjs', 'e2e-v4.mjs', 'e2e-grupos.mjs', 'e2e-apagar.mjs', 'e2e-fotos.mjs', 'e2e-tempo.mjs', 'e2e-pronto.mjs', 'e2e-som.mjs', 'e2e-nota.mjs', 'e2e-ovo.mjs', 'e2e-bebida.mjs', 'e2e-ajuste.mjs', 'rodar.sh']:
+for f in ['e2e.mjs', 'e2e-custos.mjs', 'e2e-v4.mjs', 'e2e-grupos.mjs', 'e2e-apagar.mjs', 'e2e-fotos.mjs', 'e2e-tempo.mjs', 'e2e-pronto.mjs', 'e2e-som.mjs', 'e2e-nota.mjs', 'e2e-ovo.mjs', 'e2e-bebida.mjs', 'e2e-ajuste.mjs', 'e2e-bairros.mjs', 'rodar.sh']:
     p = os.path.join(D, f)
     if not os.path.exists(p):
         continue

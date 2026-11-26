@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=25">
+  <link rel="stylesheet" href="css/style.css?v=26">
 </head>
 <body class="pg-admin">
   <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
@@ -142,9 +142,10 @@
             <h2>🛵 Entrega e pagamento</h2>
             <button type="button" class="btn btn-bloco" id="cfg-entrega" data-toggle-entrega style="margin-bottom:14px">…</button>
             <div class="linha-campos">
-              <label class="campo"><span>Taxa de entrega (R$)</span><input name="taxaEntrega" inputmode="decimal" placeholder="0,00"></label>
+              <label class="campo"><span>Taxa de entrega única (R$)</span><input name="taxaEntrega" inputmode="decimal" placeholder="0,00"></label>
               <label class="campo"><span>Pedido mínimo (R$)</span><input name="pedidoMinimo" inputmode="decimal" placeholder="0 = sem mínimo"></label>
             </div>
+            <div id="cfg-bairros" style="margin-bottom:16px"></div>
             <p class="campo"><span>⏱️ Tempo de espera (vai no fim da mensagem do WhatsApp)</span></p>
             <div class="linha-campos">
               <label class="campo"><span>Entrega</span><input name="tempoEntrega" maxlength="40" placeholder="Ex.: 40 a 60 minutos"></label>
@@ -229,6 +230,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="js/admin.js?v=25"></script>
+  <script type="module" src="js/admin.js?v=26"></script>
 </body>
 </html>

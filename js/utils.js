@@ -90,13 +90,20 @@ export function fmtHora(s) {
   const [h, m] = String(s || '0:00').split(':');
   return `${Number(h)}h${m && m !== '00' ? m : ''}`;
 }
-/** Retorna { aberta, texto, abre } — "abre" é tipo "hoje às 17h". */
-export function statusLoja(loja, agora = new Date()) {
-  if (loja.fechadoManual) return { aberta: false, texto: 'Fechada no momento', abre: '' };
-  const hs = loja.horarios || {};
-  const dia = agora.getDay();
-  const t = agora.getHours() * 60 + agora.getMinutes();
+// A loja fica em Salvador (UTC−3, sem horário de verão). Todas as contas de horário usam
+// a hora de Salvador, não o fuso/relógio configurado no celular de quem abre o site.
+const FUSO_MS = 3 * 3600 * 1000;
+const DIA_MS = 24 * 3600 * 1000;
+function horaBahia(agora) {
+  const b = new Date(agora.getTime() - FUSO_MS);
+  return { dia: b.getUTCDay(), t: b.getUTCHours() * 60 + b.getUTCMinutes(), meiaNoite: Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate()) + FUSO_MS };
+}
+const msDe = (x) => (x == null ? 0 : typeof x === 'number' ? x : typeof x.toMillis === 'function' ? x.toMillis() : x instanceof Date ? x.getTime() : Number(x.seconds || 0) * 1000);
 
+/** Status só pelo horário do painel (sem o "Fechar agora"). */
+function statusHorario(loja, agora) {
+  const hs = loja.horarios || {};
+  const { dia, t } = horaBahia(agora);
   // Expediente de ontem que passa da meia-noite (ex.: 18:00 → 01:00)
   const ontem = hs[DIAS[(dia + 6) % 7]];
   if (ontem?.aberto && minutos(ontem.fecha) <= minutos(ontem.abre) && t < minutos(ontem.fecha)) {
@@ -108,16 +115,64 @@ export function statusLoja(loja, agora = new Date()) {
     const dentro = f > a ? t >= a && t < f : t >= a;
     if (dentro) return { aberta: true, texto: `Aberta · fecha às ${fmtHora(hoje.fecha)}` };
   }
+  const prox = proximaAbertura(loja, agora);
+  return prox ? { aberta: false, texto: `Fechada · abre ${prox.texto}`, abre: prox.texto } : { aberta: false, texto: 'Fechada', abre: '' };
+}
+
+/**
+ * Próximo horário de abertura (hora de Salvador) depois de "agora".
+ * pularHoje = não conta uma abertura que ainda vai acontecer hoje (usado pelo "Fechar agora"
+ * antes do expediente: fechar às 17h significa "hoje não abro").
+ * Retorna { quando: ms, texto: "hoje às 18h" | "amanhã às 18h" | "sexta às 18h" } ou null.
+ */
+export function proximaAbertura(loja, agora = new Date(), pularHoje = false) {
+  const hs = loja.horarios || {};
+  const { dia, t, meiaNoite } = horaBahia(agora);
   for (let i = 0; i <= 7; i++) {
     const d = DIAS[(dia + i) % 7];
     const h = hs[d];
     if (!h?.aberto) continue;
-    if (i === 0 && minutos(h.abre) <= t) continue;
+    if (i === 0 && (pularHoje || minutos(h.abre) <= t)) continue;
     const quando = i === 0 ? 'hoje' : i === 1 ? 'amanhã' : DIAS_NOME[d].toLowerCase();
-    const abre = `${quando} às ${fmtHora(h.abre)}`;
-    return { aberta: false, texto: `Fechada · abre ${abre}`, abre };
+    return { quando: meiaNoite + i * DIA_MS + minutos(h.abre) * 60000, texto: `${quando} às ${fmtHora(h.abre)}` };
   }
-  return { aberta: false, texto: 'Fechada', abre: '' };
+  return null;
+}
+
+/**
+ * Até quando vale o "Fechar agora" tocado neste momento: até a próxima abertura do horário.
+ * Loja aberta → até a abertura do próximo expediente (ex.: amanhã 18h).
+ * Loja ainda fechada (ex.: 17h) → pula a abertura de hoje (ex.: amanhã 18h).
+ */
+export function fechadoAteAgora(loja, agora = new Date()) {
+  const aberta = statusHorario(loja, agora).aberta;
+  return proximaAbertura(loja, agora, !aberta)?.quando || null;
+}
+
+// ---------- Bairros de entrega (cadastrados no painel, cada um com a sua taxa) ----------
+export const BAIRRO_FORA = '__fora';   // opção "Meu bairro não está na lista"
+export const bairrosLoja = (l) => (Array.isArray(l?.bairros) ? l.bairros.filter((b) => b && b.id && String(b.nome || '').trim()) : []);
+
+/** "hoje às 18h" / "amanhã às 18h" / "sexta às 18h" para um instante (hora de Salvador) */
+function textoQuando(ms, agora) {
+  const a = horaBahia(agora), b = horaBahia(new Date(ms));
+  const dias = Math.round((b.meiaNoite - a.meiaNoite) / DIA_MS);
+  const quando = dias <= 0 ? 'hoje' : dias === 1 ? 'amanhã' : DIAS_NOME[DIAS[b.dia]].toLowerCase();
+  return `${quando} às ${fmtHora(`${Math.floor(b.t / 60)}:${String(b.t % 60).padStart(2, '0')}`)}`;
+}
+
+/** Retorna { aberta, texto, abre } — "abre" é tipo "hoje às 17h". */
+export function statusLoja(loja, agora = new Date()) {
+  if (loja.fechadoManual) {
+    const ate = msDe(loja.fechadoAte);
+    // "Fechar agora" vale até a próxima abertura; sem data (versões antigas) vale até reabrir no painel
+    if (!ate || agora.getTime() < ate) {
+      const abre = ate ? textoQuando(ate, agora) : '';
+      return abre ? { aberta: false, texto: `Fechada · abre ${abre}`, abre, manual: true }
+        : { aberta: false, texto: 'Fechada no momento', abre: '', manual: true };
+    }
+  }
+  return statusHorario(loja, agora);
 }
 
 // ---------- Formatação ----------

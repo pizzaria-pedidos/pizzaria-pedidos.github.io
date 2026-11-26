@@ -9,9 +9,9 @@
 // =====================================================================
 import {
   db, doc, setDoc, onSnapshot, collection, query, where, writeBatch, Timestamp, serverTimestamp,
-} from './firebase-config.js?v=25';
-import * as U from './utils.js?v=25';
-import * as N from './notas.js?v=25';
+} from './firebase-config.js?v=26';
+import * as U from './utils.js?v=26';
+import * as N from './notas.js?v=26';
 
 const { esc, fmtBRL: brl } = U;
 const $ = (s, el = document) => el.querySelector(s);

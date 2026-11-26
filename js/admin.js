@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp, deleteField,
-} from './firebase-config.js?v=25';
+} from './firebase-config.js?v=26';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=25';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=25';
+import * as U from './utils.js?v=26';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=26';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -306,7 +306,7 @@ function itensHTML(itens) {
 function enderecoTexto(p) {
   if (p.tipo !== 'entrega' || !p.endereco) return '🏃 Retirada no local';
   const e = p.endereco;
-  return `🛵 ${e.rua}, ${e.numero} — ${e.bairro}${e.complemento ? ` · ${e.complemento}` : ''}${e.referencia ? ` · Ref.: ${e.referencia}` : ''}`;
+  return `🛵 ${e.rua}, ${e.numero} — ${e.bairro}${e.foraDaLista ? ' (fora da lista)' : ''}${e.complemento ? ` · ${e.complemento}` : ''}${e.referencia ? ` · Ref.: ${e.referencia}` : ''}`;
 }
 function pagamentoTexto(p) {
   if (p.pagamento === 'dinheiro') return `💵 Dinheiro${p.troco ? ` (troco p/ ${fmtBRL(p.troco)})` : ' (sem troco)'}`;
@@ -406,6 +406,7 @@ function pedidoHTML(p, comAcoes = true) {
     <div class="pc-cliente">${esc(p.clienteNome)}${apelidoHTML(p.clienteTel)} <small>${U.fmtTel(p.clienteTel)}</small></div>
     ${comAcoes ? historicoClienteHTML(p.clienteTel, p.id) : ''}
     <div class="pc-bloco">${esc(enderecoTexto(p))}</div>
+    ${p.tipo === 'entrega' && p.endereco?.foraDaLista ? '<div class="pc-alerta">⚠️ <b>ATENÇÃO:</b> bairro fora da lista de entrega — combinar a taxa com o cliente</div>' : ''}
     ${itensHTML(p.itens || [])}
     <div class="pc-bloco">${esc(pagamentoTexto(p))}</div>
     <div class="pc-total${p.ajuste ? ' riscado' : ''}"><span>Total${p.taxaEntrega ? ` <small style="font-weight:600">(entrega ${fmtBRL(p.taxaEntrega)})</small>` : ''}</span><span>${fmtBRL(p.total)}</span></div>
@@ -556,9 +557,9 @@ $('#lista-pedidos-admin').addEventListener('change', (e) => {
 function renderBotaoLoja() {
   const st = U.statusLoja(S.loja);
   $$('[data-toggle-loja]').forEach((b) => {
-    if (S.loja.fechadoManual) {
+    if (st.manual) {
       b.className = `btn ${b.id === 'cfg-fechar' ? 'btn-bloco' : 'btn-peq'} btn-loja-fechada`;
-      b.textContent = '🔒 Loja fechada manualmente — toque para reabrir';
+      b.textContent = st.abre ? `🔒 Fechada por você até ${st.abre} — toque para reabrir agora` : '🔒 Loja fechada manualmente — toque para reabrir';
     } else {
       b.className = `btn ${b.id === 'cfg-fechar' ? 'btn-bloco' : 'btn-peq'} ${st.aberta ? 'btn-loja-aberta' : 'btn-loja-fechada'}`;
       b.textContent = `${st.aberta ? '🟢' : '🔴'} ${st.texto} · Fechar agora`;
@@ -621,11 +622,14 @@ $$('[data-toggle-entrega]').forEach((b) => b.addEventListener('click', async () 
   } catch (e) { tratarErro(e); U.toast('Erro ao salvar.', 'erro-t'); }
 }));
 $$('[data-toggle-loja]').forEach((b) => b.addEventListener('click', async () => {
-  const fechar = !S.loja.fechadoManual;
-  if (fechar && !confirm('Fechar a loja agora? Os clientes não vão conseguir finalizar pedidos até você reabrir.')) return;
+  // "Fechar agora" vale só até a próxima abertura do horário; depois a loja volta a abrir sozinha
+  const fechar = !U.statusLoja(S.loja).manual;
+  const ate = fechar ? U.fechadoAteAgora(S.loja) : null;
+  const quando = ate ? U.proximaAbertura(S.loja, new Date(ate - 60000))?.texto : '';
+  if (fechar && !confirm(`Fechar a loja agora? Os clientes não vão conseguir finalizar pedidos${ate ? ' até a próxima abertura do horário. Depois ela abre sozinha.' : ' até você reabrir.'}`)) return;
   try {
-    await setDoc(doc(db, 'config', 'loja'), { fechadoManual: fechar }, { merge: true });
-    U.toast(fechar ? 'Loja fechada 🔒' : 'Loja reaberta (segue o horário) 🟢');
+    await setDoc(doc(db, 'config', 'loja'), fechar ? { fechadoManual: true, fechadoAte: ate } : { fechadoManual: false, fechadoAte: deleteField() }, { merge: true });
+    U.toast(fechar ? `Loja fechada 🔒${quando ? ' — abre sozinha no próximo horário' : ''}` : 'Loja reaberta (segue o horário) 🟢');
   } catch (e) { tratarErro(e); U.toast('Erro ao salvar.', 'erro-t'); }
 }));
 
@@ -1342,9 +1346,73 @@ function preencherConfig() {
       <input type="time" data-h="fecha" value="${esc(h.fecha || '23:00')}" aria-label="${U.DIAS_NOME[d]} fecha">
     </div>`;
   }).join('');
+  renderBairrosCfg();
   $('#cfg-horarios').insertAdjacentHTML('beforeend', '<small style="color:var(--texto-2)">Se fechar depois da meia-noite (ex.: 18:00 → 01:00), funciona normalmente.</small>');
   renderBotaoLoja();
 }
+
+// ---------- 🏘️ Bairros de entrega (salvam na hora, sem precisar do botão Salvar) ----------
+function renderBairrosCfg() {
+  const lista = U.bairrosLoja(S.loja);
+  $('#cfg-bairros').innerHTML = `
+    <p class="campo" style="margin-bottom:6px"><span>🏘️ Bairros de entrega (cada um com a sua taxa)</span></p>
+    ${lista.map((b) => `<div class="bairro-linha">
+      <input class="input" data-bairro-nome="${esc(b.id)}" value="${esc(b.nome)}" maxlength="40" aria-label="Nome do bairro">
+      <input class="input" data-bairro-taxa="${esc(b.id)}" value="${esc(U.moneyInput(b.taxa) || '0')}" inputmode="decimal" aria-label="Taxa de ${esc(b.nome)}">
+      <button type="button" class="btn-icone" data-bairro-del="${esc(b.id)}" aria-label="Excluir ${esc(b.nome)}">✕</button></div>`).join('')}
+    <div class="bairro-linha">
+      <input class="input" id="nb-nome" maxlength="40" placeholder="Nome do bairro">
+      <input class="input" id="nb-taxa" inputmode="decimal" placeholder="Taxa R$">
+      <button type="button" class="btn btn-sec btn-peq" id="nb-add">+ Adicionar</button></div>
+    <small class="cu-dica" style="display:block">${lista.length
+      ? `O cliente escolhe o bairro numa lista e a taxa entra sozinha. Se o bairro dele não estiver aqui, ele marca <b>“Meu bairro não está na lista”</b> e o pedido chega com <b>⚠️ ATENÇÃO</b> para vocês combinarem a taxa. (A taxa única acima não é usada.)`
+      : 'Nenhum bairro cadastrado: vale a <b>taxa única</b> acima e o cliente digita o bairro.'}</small>`;
+}
+async function salvarBairros(lista, msg) {
+  lista.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  try {
+    await setDoc(doc(db, 'config', 'loja'), { bairros: lista }, { merge: true });
+    S.loja.bairros = lista;
+    renderBairrosCfg();
+    if (msg) U.toast(msg);
+  } catch (err) { tratarErro(err); U.toast('Erro ao salvar os bairros.', 'erro-t'); }
+}
+function adicionarBairro() {
+  const nome = $('#nb-nome').value.trim().replace(/\s+/g, ' ');
+  const taxa = U.parseMoney($('#nb-taxa').value);
+  if (!nome) { U.toast('Digite o nome do bairro.', 'erro-t'); $('#nb-nome').focus(); return; }
+  const lista = U.bairrosLoja(S.loja).map((b) => ({ ...b }));
+  if (lista.some((b) => U.norm(b.nome).trim() === U.norm(nome))) { U.toast('Esse bairro já está na lista.', 'erro-t'); return; }
+  lista.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nome, taxa: Math.max(0, taxa) });
+  salvarBairros(lista, `${nome} adicionado — taxa ${fmtBRL(taxa)} ✓`).then(() => $('#nb-nome')?.focus());
+}
+$('#cfg-bairros').addEventListener('click', (e) => {
+  if (e.target.closest('#nb-add')) { adicionarBairro(); return; }
+  const del = e.target.closest('[data-bairro-del]');
+  if (del) {
+    const b = U.bairrosLoja(S.loja).find((x) => x.id === del.dataset.bairroDel);
+    if (!b || !confirm(`Excluir o bairro “${b.nome}”?`)) return;
+    salvarBairros(U.bairrosLoja(S.loja).filter((x) => x.id !== b.id), `${b.nome} excluído`);
+  }
+});
+$('#cfg-bairros').addEventListener('keydown', (e) => {
+  // Enter dentro da lista de bairros não envia o formulário de Ajustes
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  if (e.target.id === 'nb-nome') $('#nb-taxa').focus();
+  else if (e.target.id === 'nb-taxa') adicionarBairro();
+  else e.target.blur();
+});
+$('#cfg-bairros').addEventListener('change', (e) => {
+  const idN = e.target.dataset.bairroNome, idT = e.target.dataset.bairroTaxa;
+  if (!idN && !idT) return;
+  const lista = U.bairrosLoja(S.loja).map((b) => ({ ...b }));
+  const b = lista.find((x) => x.id === (idN || idT));
+  if (!b) return;
+  if (idN) { const v = e.target.value.trim().replace(/\s+/g, ' '); if (!v) { renderBairrosCfg(); return; } b.nome = v; }
+  if (idT) b.taxa = Math.max(0, U.parseMoney(e.target.value));
+  salvarBairros(lista, `${b.nome}: taxa ${fmtBRL(b.taxa)} ✓`);
+});
 
 $('#form-config').addEventListener('submit', async (e) => {
   e.preventDefault();

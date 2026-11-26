@@ -8,7 +8,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **`admin.html`**: painel (pedidos com som, cardápio, clientes, ajustes)
 - HTML + CSS + JavaScript puro, sem build. Firebase (Firestore + Authentication). Hospedagem no GitHub Pages.
 
-## ✅ Status atual (25/11/2026, 2): no ar
+## ✅ Status atual (26/11/2026): no ar
 
 | | |
 |---|---|
@@ -19,7 +19,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 | Admin | UID `KRosnMXQ9nbvaw1U81HRKyUgF0i1` (fixo no `firestore.rules`) |
 | Domínios autorizados no Auth | `pizzaria-pedidos.github.io` (e o antigo `magalhaeseduardo71.github.io`) |
 
-- **Cardápio:** um tamanho só, **Pizza Grande 35 cm, 8 fatias, até 3 sabores**. A Pizza Média está **desligada, não excluída**: para voltar a vender, é só ligar em Cardápio → Produtos.
+- **Cardápio:** um tamanho só, **Pizza Grande 35 cm, 8 fatias, até 3 sabores**. A Pizza Média foi excluída do cardápio; se um dia voltar a vender outro tamanho, é só cadastrar um produto pizza com o tamanho (o sistema aceita vários).
 - **Área de custos:** o PIN já foi criado. As fichas foram importadas do sistema antigo: Massa (rende 4 discos), Base (molho, mussarela e orégano), Calabresa e Mussarela. Frango c/ Catupiry foi preenchido à mão.
 - **Novidades de 11/11/2026:**
   - Apelido opcional na entrada do cliente.
@@ -87,6 +87,10 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
   - **💸 Ajustar valor do pedido**: em "⋯ Mais opções" do pedido, informe o valor que você realmente recebeu e o motivo. O pedido continua guardado como foi feito, e o faturamento e o Balanço passam a usar o valor recebido.
   - **Quantidade diferente na metade e no terço**: substitui a caixinha "Quantidade fixa". Em Fichas → Sabores, cada ingrediente tem o botão **✏️ Quantidade diferente na metade e no terço** (ex.: Portuguesa com 3 ovos na inteira, 2 na metade e 1 no terço).
   - Versão dos arquivos `?v=25`.
+- **Novidades de 26/11/2026 (2):**
+  - **🏘️ Bairros de entrega com taxa automática** (Ajustes → Entrega e pagamento). O cliente escolhe o bairro numa lista. Se o bairro dele não estiver lá, ele marca "Meu bairro não está na lista" e o pedido chega com **⚠️ ATENÇÃO** para combinar a taxa.
+  - **Horário automático de verdade:** sempre na hora de Salvador, e o "Fechar agora" vale só até a próxima abertura (depois a loja abre sozinha).
+  - Versão dos arquivos `?v=26`.
 - **Teste de 25/11/2026 (desfeito):** a `?v=23` mostrava a foto da bebida sempre inteira, com sobras brancas. O Eduardo não gostou, e a `?v=24` voltou ao jeito anterior: a foto preenche o quadro todo, como nas pizzas.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
@@ -232,7 +236,18 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
   - A categoria Bebidas continua no cardápio, para quem quer só bebida.
 - **Foto da bebida:** a foto preenche o quadro todo, e o que sobra do formato é cortado. Para não cortar a garrafa, use foto **quadrada (1:1)**, de 1024 × 1024 px (o painel reduz para 640 × 640), com a garrafa centralizada e margem em volta. Lugares onde ela aparece: lista do cardápio (quadrado de 96 px), tela da pizza (quadrado de 52 px), Destaques (160 × 110) e topo da janela da bebida (largura da tela × 200). Nos dois últimos, o corte pega um pouco de cima e de baixo. Mostrar a foto inteira com sobras brancas foi testado em 25/11/2026 e descartado.
 - **Esconder o que está desligado:** por padrão, produto ou sabor desligado aparece **acinzentado** para o cliente. Para ele **sumir**, marque **Ajustes → Cardápio → "Esconder itens indisponíveis"** e salve. Isso vale para tudo: produtos (ex.: a Pizza Média) e sabores esgotados.
-- **Fechar a loja agora:** use o botão no topo da tela de Pedidos. Ele vale até você reabrir. Fora desse botão, a loja abre e fecha sozinha pelo horário configurado, inclusive em horários que passam da meia-noite (ex.: 18:00 → 01:00).
+- **Horário (abre e fecha sozinha):** a loja segue o horário de **Ajustes → 🕒 Funcionamento**, sempre na **hora de Salvador**, mesmo que o celular do cliente esteja com outro fuso. Ex.: 18:00 às 23:00 → antes das 18h e a partir das 23h ninguém consegue finalizar pedido ("Loja fechada — abrimos hoje às 18h"). Funciona também com horário que passa da meia-noite (ex.: 18:00 → 01:00).
+- **Fechar a loja agora:** use o botão no topo da tela de Pedidos (ou em Ajustes). Ele vale **só até a próxima abertura do horário**:
+  - fechou às 20h → fica fechada hoje e **abre sozinha amanhã às 18h**;
+  - fechou às 17h, antes de abrir → **hoje não abre**, e amanhã às 18h abre sozinha;
+  - enquanto estiver fechada por você, o botão mostra "🔒 Fechada por você até amanhã às 18h — toque para reabrir agora".
+- **🏘️ Bairros de entrega:** em **Ajustes → 🛵 Entrega e pagamento → 🏘️ Bairros de entrega**:
+  1. Digite o **nome do bairro** e a **taxa** (ex.: Itapuã, 8) e toque em **+ Adicionar**. Salva na hora, sem precisar do botão Salvar.
+  2. Para mudar uma taxa ou um nome, edite o campo e saia dele. Para excluir, toque no **✕**.
+  - O cliente, ao escolher **Entrega**, vê a lista **"Escolha seu bairro…"** com a taxa de cada um. A taxa entra sozinha no total e na mensagem do WhatsApp.
+  - Última opção da lista: **"⚠️ Meu bairro não está na lista"**. O cliente escreve o bairro e vê o aviso de que a taxa será combinada pelo WhatsApp. O pedido chega com **"⚠️ ATENÇÃO: bairro fora da lista de entrega — combinar a taxa"** na mensagem e no card do painel, e o total vai **sem** a taxa.
+  - Sem nenhum bairro cadastrado, vale a **taxa única** e o cliente digita o bairro, como antes.
+  - "Mais informações", no site do cliente, mostra a lista de bairros com as taxas.
 - **Preço de pizza com vários sabores:** por padrão vale o **sabor mais caro**. Dá para trocar para **média dos sabores** em Ajustes → Cardápio.
 - **Tamanhos:** o campo "Tamanho" do produto pizza (ex.: `Grande`) é o nome que aparece na tabela de preços de cada sabor. Se um sabor ficar sem preço num tamanho, ele não é oferecido nesse tamanho.
 
@@ -321,5 +336,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=25` → `?v=26` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=26` → `?v=27` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

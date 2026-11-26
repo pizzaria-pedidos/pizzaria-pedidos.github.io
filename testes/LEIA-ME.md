@@ -24,7 +24,7 @@ export PLAYWRIGHT=/caminho/para/node_modules/playwright
 
 ## Rodar
 ```bash
-bash testes/rodar.sh original custos v4-novas grupos apagar fotos tempo som pronto nota ovo bebida ajuste
+bash testes/rodar.sh original custos v4-novas grupos apagar fotos tempo som pronto nota ovo bebida ajuste bairros
 ```
 
 Cada bateria roda com o banco limpo e mostra `RESULTADO: N ok, 0 falha(s)`. As falhas aparecem com ✘. Detalhes ficam em `testes/out-<bateria>.txt`, e as capturas de tela em `testes/shots-*/`.
@@ -42,6 +42,7 @@ Cada bateria roda com o banco limpo e mostra `RESULTADO: N ok, 0 falha(s)`. As f
 | pronto | cronômetro com segundos → Pedido pronto → Informar cliente (WhatsApp com mensagem) |
 | bebida | bebidas dentro da tela da pizza, botão "Adicionar e finalizar", mensagem e pedido gravado |
 | ovo | quantidade própria na metade e no terço (ex.: ovos da Portuguesa 3 / 2 / 1); custo do pedido, gramas |
+| bairros | bairros de entrega com taxa automática, "bairro fora da lista" com ⚠️, horário de Salvador, "Fechar agora" até a próxima abertura |
 | ajuste | 💸 Ajustar valor do pedido: pedido original intacto, faturamento e Balanço com o valor recebido |
 | nota | lista única de ingredientes, nota fiscal real de 15/11/2026, ml/L, histórico, lucro mínimo, bebidas |
 

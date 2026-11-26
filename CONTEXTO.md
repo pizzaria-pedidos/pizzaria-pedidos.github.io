@@ -1,6 +1,6 @@
 # 🍕 CONTEXTO DO PROJETO: leia isto primeiro
 
-> **Para o Claude do próximo chat:** este arquivo resume tudo o que foi construído e decidido até 25/11/2026.
+> **Para o Claude do próximo chat:** este arquivo resume tudo o que foi construído e decidido até 26/11/2026.
 > Leia este arquivo inteiro. Depois leia o `README.md` (detalhes de uso) e o código antes de propor qualquer mudança.
 > O conteúdo deste repositório é **exatamente o que está no ar**.
 
@@ -56,14 +56,14 @@ CONTEXTO.md       este arquivo
 testes/           testes automáticos (emulador Firebase + Playwright). Veja testes/LEIA-ME.md
 ```
 
-⚠️ **Versão dos arquivos: hoje é `?v=25`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=26`) **em todos os lugares**. Depois rode `python3 testes/versao.py 26` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
+⚠️ **Versão dos arquivos: hoje é `?v=26`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=27`) **em todos os lugares**. Depois rode `python3 testes/versao.py 27` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
 
 ## 4. Dados no Firestore
 
-- `config/loja`: nome, logoUrl, whatsapp, endereco, horarios{dom..sab:{aberto,abre,fecha}}, fechadoManual, **entregaAtiva**, taxaEntrega, pedidoMinimo, **tempoEntrega/tempoRetirada** (texto livre), pagamentos[], chavePix, **msgProntoEntrega/msgProntoRetirada** (aceitam {nome} {codigo} {total}), regraPrecoPizza ('maior'), ocultarIndisponiveis, limiteRecorrente, limiteVip, diasSumido, **gruposSabor**[{id,nome,precos{tamanho:valor}}].
+- `config/loja`: nome, logoUrl, whatsapp, endereco, horarios{dom..sab:{aberto,abre,fecha}}, fechadoManual, **fechadoAte** (ms; até quando vale o "Fechar agora"), **bairros**[{id,nome,taxa}], **entregaAtiva**, taxaEntrega, pedidoMinimo, **tempoEntrega/tempoRetirada** (texto livre), pagamentos[], chavePix, **msgProntoEntrega/msgProntoRetirada** (aceitam {nome} {codigo} {total}), regraPrecoPizza ('maior'), ocultarIndisponiveis, limiteRecorrente, limiteVip, diasSumido, **gruposSabor**[{id,nome,precos{tamanho:valor}}].
 - `config/contador`: ultimoNumero (contador interno; o cliente vê o **código aleatório**).
 - `categorias`, `produtos` (tipo 'pizza'|'simples', tamanho, fatias, maxSabores, fotoUrl, disponivel…), `sabores` (ingredientes = descrição, precos{tamanho}, **grupo**, fotoUrl), `bordas`, `adicionais`.
-- `pedidos/{id}`: itens[] (com cópia de nomes e preços), tipo, endereco, pagamento, troco, subtotal, taxaEntrega, total, status, criadoEm, **prontoEm, informadoEm, concluidoEm**, **ajuste**{recebido, desconto, motivo, em} (opcional, gravado pelo admin no 💸 Ajustar valor; `U.valorRecebido(p)` e `U.descontoAjuste(p)` em `js/utils.js`; o faturamento e o Balanço usam o recebido; itens e total ficam intactos).
+- `pedidos/{id}`: itens[] (com cópia de nomes e preços), tipo, endereco{rua,numero,bairro,complemento,referencia, **bairroId?**, **foraDaLista?**}, pagamento, troco, subtotal, taxaEntrega, total, status, criadoEm, **prontoEm, informadoEm, concluidoEm**, **ajuste**{recebido, desconto, motivo, em} (opcional, gravado pelo admin no 💸 Ajustar valor; `U.valorRecebido(p)` e `U.descontoAjuste(p)` em `js/utils.js`; o faturamento e o Balanço usam o recebido; itens e total ficam intactos).
 - `clientes/{tel}`: nome, **apelido**, telefone, totalPedidos, totalGasto, primeiro/ultimoPedidoEm, ultimoEndereco, ultimosPedidos[].
 - `custos/fichas` (só admin): pinHash, massa{rende,itens}, base{itens}, sabores{id:{itens}}, bordas, adicionais, simples{produtoId:{qtd,preco,hist}}, tamanhos{ref,fator}, **ingredientes**{id:{nome,base:'kg'|'L'|'un',preco,emb,hist[{d,p,desc}],at}}, **apelidos**{assinatura→destino}, **lucroMinimo**. Os itens das fichas são `{id, ing, usa, meia?, terco?}`. `meia`/`terco` (só em sabores) = quantidade própria quando o sabor é ½ ou ⅓ da pizza (ex.: Portuguesa: usa 3 ovos, meia 2, terco 1); vazio ou ausente = divide sozinho (`qtdFrac` em `js/custos.js`). O antigo `fixo` (v20–v24) é convertido sozinho e removido.
 - `custosPedidos/{pedidoId}` (só admin): custo, venda e linhas gravados no momento do pedido.
@@ -71,7 +71,10 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
 
 ## 5. Como o cardápio está configurado (dados reais do Eduardo)
 
-- Trabalha com **um tamanho só: Pizza Grande 35 cm, 8 fatias, até 3 sabores.** A Pizza Média existe, mas está **desligada** (não excluída). Pode voltar no futuro, então manter o suporte a vários tamanhos.
+- Trabalha com **um tamanho só: Pizza Grande 35 cm, 8 fatias, até 3 sabores.** Em 26/11/2026 a Pizza Média **não existia mais** no banco (foi excluída, não só desligada). O código continua aceitando vários tamanhos, caso ele volte a vender outro.
+- **Horário:** todos os dias, 18:00 às 23:00. Taxa única de entrega: R$ 5,00 (vale enquanto não houver bairros cadastrados).
+- **Sabores (26/11):** Calabresa, Calabresa Acebolada, Mussarela, Frango c/ Catupiry, Milho, Baiana, Mista, Portuguesa, Atum, Atum c/ Catupiry, Bacon. **Com ficha de custo:** Calabresa, Calabresa Acebolada, Mussarela e Frango c/ Catupiry. Borda: Catupiry (R$ 7, com ficha "Catupiry Borda" 100 g).
+- **Bebidas (26/11):** Antarctica 1L e Pepsi 1L (a Pepsi estava **desligada**). Nenhuma com custo do fardo preenchido.
 - Os sabores ficam em **grupos de preço**: **Tradicionais** (~R$ 35) e **Especiais** (R$ 40 a 45). Pizza com vários sabores = preço do **sabor mais caro**.
 - As bebidas ficam por **marca** no cardápio (ex.: "Pepsi 1L"; ele vai criar "Antártica 1L", "Coca-Cola…").
 - A **embalagem** (pacote com 25 por R$ 28,99 = R$ 1,16 cada) pode ir na **Base** da área de custos.
@@ -83,6 +86,8 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
 - Seção **"Nossos sabores"** com a descrição de cada sabor, separada por grupo.
 - **Bebida dentro da tela da pizza** (25/11/2026): depois de Borda e Adicionais, a seção 🥤 Bebida lista os produtos simples das categorias com "bebida" no nome (função `bebidasParaPizza` em `js/cliente.js`). Cada bebida vira uma linha simples no carrinho. Botões **Adicionar** e **Adicionar e finalizar ➜** (`#mp-fin`), que abre o carrinho direto. A quantidade de pizzas não multiplica as bebidas. **Foto das bebidas:** preenche o quadro (`cover`), como nas pizzas. Mostrar a foto inteira com sobras brancas (`contain`) foi testado na v23 e o Eduardo **não gostou**: não refazer.
 - Carrinho; entrega ou retirada (a entrega pode estar desligada no dia); Pix, Cartão ou Dinheiro com troco.
+- **🏘️ Bairros** (26/11/2026): se houver bairros em `config/loja.bairros`, o cliente escolhe numa lista e a taxa entra sozinha (`taxa()`, `bairroEscolhido()`, `renderBairro()` em `js/cliente.js`). A última opção é **"⚠️ Meu bairro não está na lista"**: o cliente escreve o bairro, a taxa fica "a combinar" (0) e o pedido vai com `endereco.foraDaLista: true`. A mensagem do WhatsApp traz "⚠️ *ATENÇÃO: bairro fora da lista de entrega — combinar a taxa*", e o card do painel mostra um aviso amarelo. Sem bairros cadastrados: o cliente digita o bairro e vale a taxa única.
+- **🕒 Horário:** a loja abre e fecha **sozinha** pelo horário do painel, sempre na **hora de Salvador (UTC−3)**, nunca no fuso do celular (`statusLoja` em `js/utils.js`). Fora do horário, o botão de finalizar fica bloqueado ("Loja fechada — abrimos hoje às 18h").
 - Mensagem do WhatsApp:
   - começa com "🍕 *Código do seu pedido: K7Q2M9*" (6 caracteres, sem 0/O/1/I/L);
   - termina com o **tempo de espera estimado**;
@@ -95,11 +100,12 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
   - "⋯ Mais opções" para mudar status ou cancelar;
   - 6 sons para escolher (vale por aparelho);
   - botões rápidos: abrir/fechar loja, entrega ligada/desligada, ⏱️ tempo de espera;
+  - **"Fechar agora" vale só até a próxima abertura** do horário (`fechadoAte`, calculado por `U.fechadoAteAgora`). Ex.: fechou às 20h → abre sozinha amanhã às 18h; fechou às 17h (antes de abrir) → hoje não abre, amanhã às 18h abre. "Toque para reabrir" apaga a data. Um `fechadoManual: true` **sem** `fechadoAte` (versões antigas) continua fechado até reabrir no painel;
   - "Preparo médio" do dia.
 - **Cardápio:** CRUD; **preço por grupo** de sabores; fotos da **galeria** (o painel reduz o tamanho sozinho).
 - **💸 Ajustar valor** (26/11/2026): em "⋯ Mais opções" do card do pedido. Grava `pedidos/{id}.ajuste` sem mexer nos itens e no total. O card mostra o total riscado e "💸 Recebido"; o faturamento e o Balanço usam o recebido. Criado para o pedido do Ramon de 25/11 (2 pizzas de R$ 42; uma saiu por R$ 23,76 → recebido R$ 65,76). O **Eduardo vai aplicar sozinho** nesse pedido.
 - **Clientes:** tabela ordenável; etiquetas Novo, Recorrente, VIP e Sumido; histórico; **apagar cliente** (com opção de apagar os pedidos).
-- **Ajustes:** loja, horários, entrega e pagamento, tempos de espera, mensagens do "pedido pronto", regras.
+- **Ajustes:** loja, horários, entrega e pagamento, **🏘️ bairros de entrega** (nome + taxa; adicionar, mudar e excluir salvam na hora, sem o botão Salvar), tempos de espera, mensagens do "pedido pronto", regras.
 
 **Área de custos (🔒 cadeado + PIN):**
 - **Balanço** do dia, com o custo gravado no momento de cada pedido.
@@ -123,6 +129,11 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
 - **Nota fiscal pelo copiar e colar** (grátis). Ler a foto direto no site exigiria uma chave de IA paga e um servidor no plano Blaze: adiado.
 - **Sem Firebase Storage** (exige Blaze): fotos reduzidas dentro do documento.
 - Ao mudar as regras do Firestore, preferir mudanças que **não quebrem os pedidos** se o Eduardo demorar a publicar. Exemplo: o apelido é gravado de um jeito que não impede o pedido.
+- **Nada de caixinhas de marcar nas fichas** de custo (ele não gostou da "Quantidade fixa").
+- **Foto da bebida preenche o quadro** (`cover`); a versão "foto inteira com bordas brancas" foi rejeitada.
+- **Horário fiel ao painel:** a loja abre e fecha sozinha; o "Fechar agora" não pode deixar a loja fechada para sempre.
+- **Bairro fora da lista:** o cliente consegue mandar o pedido, mas ele chega com ⚠️ ATENÇÃO para combinar a taxa pelo WhatsApp.
+- **Pedidos já feitos não se mexem.** Para corrigir valor, usar o 💸 Ajustar valor (o pedido original fica intacto). Não tocar em "Recalcular este dia" do Balanço sem o Eduardo pedir.
 
 ## 8. Sobre o Eduardo (como trabalhar com ele)
 
@@ -137,12 +148,18 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
   4. **entregar um ZIP** do projeto.
 - **Notebook dele (Windows 7):** a bateria da placa-mãe está fraca e a data e hora desregulam. Isso causa **"sem permissão no banco de dados"** no painel. A solução é sincronizar o relógio, com fuso **"(UTC-03:00) Salvador"** e não Brasília, porque o Windows 7 aplica horário de verão.
 - Também roda **outras sessões do Claude pelo navegador**, que já mexeram no GitHub e no Firebase dele.
+- Gosta de **testar sozinho** as novidades no painel (ex.: ele mesmo aplica o 💸 ajuste). Explique o passo a passo em vez de fazer por ele, quando ele pedir assim.
+- **Acesso aos dados reais:** em 26/11/2026 ele passou o e-mail e a senha do painel para o Claude **ler** o banco (diagnóstico do Balanço), e disse que ia trocar a senha. **Nunca** gravar senha em arquivo ou no GitHub. Se precisar ver dados de novo, peça a ele. Só ler, e só alterar o banco se ele pedir explicitamente.
 
 ## 9. Pendências e próximos passos possíveis
 
+- **Reabrir a loja uma vez no painel:** em 26/11 a loja estava com `fechadoManual: true` **sem data** (botão antigo). Até ele tocar em "toque para reabrir", ela não abre sozinha. Depois disso, o horário automático funciona.
+- **Cadastrar os bairros** de entrega em Ajustes → Entrega e pagamento.
+- **💸 Ajuste do pedido do Ramon (25/11):** ele vai aplicar recebido R$ 65,76, motivo "divergência no pedido".
+- **Fichas que faltam:** sabores Milho, Baiana, Mista, Portuguesa (com ovos 3 / 2 / 1 na metade e no terço), Atum, Atum c/ Catupiry e Bacon; custo do fardo da Antarctica 1L e da Pepsi 1L.
+- **Conferir preços:** orégano a R$ 5/kg (provavelmente devia ser ~R$ 50/kg); existem "Catupiry" (R$ 12/kg) e "Catupiry Borda" (R$ 29,99/kg). Confirmar se são produtos diferentes.
+- **Trocar a senha do painel** (ele passou a senha ao Claude em 26/11).
 - Confirmar se os **emojis** chegam certos no WhatsApp desde a troca para `api.whatsapp.com`.
-- Eduardo criar no cardápio as bebidas por marca ("Antártica 1L", "Coca-Cola…") e preencher o custo do fardo da "Pepsi 1L".
-- Conferir na lista de 🧾 Ingredientes se ficou algum ingrediente sobrando (ex.: "Refrigerante antarctica" criado como ingrediente) e excluir.
 - Ideias combinadas para o futuro:
   - **fidelidade** (no modelo seguro do item 7);
   - botão **"Exportar dados"** (backup);
@@ -155,4 +172,4 @@ Veja `testes/LEIA-ME.md`. Resumo:
 - o site é servido localmente;
 - o Playwright faz o papel do cliente e do admin.
 
-São 13 baterias e ~310 verificações. Todas passavam na versão `?v=25`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.
+São 14 baterias e ~345 verificações. Todas passavam na versão `?v=26`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.

@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://firestore.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=25">
+  <link rel="stylesheet" href="css/style.css?v=26">
 </head>
 <body class="pg-cliente">
   <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
@@ -120,9 +120,11 @@
           </div>
           <div id="campos-entrega">
             <label class="campo"><span>Rua *</span><input data-end="rua" autocomplete="address-line1" maxlength="100"></label>
+            <label class="campo" id="campo-bairro-sel" hidden><span>Bairro *</span><select id="bairro-sel" aria-label="Bairro"></select></label>
+            <div id="info-bairro" class="info-caixa alerta-caixa" hidden></div>
             <div class="linha-campos l-1-2">
               <label class="campo"><span>Número *</span><input data-end="numero" inputmode="text" maxlength="12"></label>
-              <label class="campo"><span>Bairro *</span><input data-end="bairro" maxlength="60"></label>
+              <label class="campo" id="campo-bairro-txt"><span id="rotulo-bairro">Bairro *</span><input data-end="bairro" maxlength="60"></label>
             </div>
             <label class="campo"><span>Complemento</span><input data-end="complemento" placeholder="Apto, bloco, casa…" maxlength="80"></label>
             <label class="campo"><span>Ponto de referência</span><input data-end="referencia" placeholder="Perto de…" maxlength="100"></label>
@@ -192,6 +194,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="js/cliente.js?v=25"></script>
+  <script type="module" src="js/cliente.js?v=26"></script>
 </body>
 </html>
