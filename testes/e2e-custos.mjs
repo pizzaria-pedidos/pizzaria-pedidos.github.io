@@ -167,7 +167,7 @@ check(bal.includes('84,17'), 'dinheiro do lucro R$ 84,17');
 check(bal.includes('Taxas de entrega') && bal.includes('5,00'), 'taxa de entrega à parte');
 check(!bal.includes('ainda não têm o custo gravado'), 'custo gravado automaticamente ao chegar o pedido');
 const salvo = await adm.evaluate(async () => {
-  const m = await import('/js/firebase-config.js?v=31');
+  const m = await import('/js/firebase-config.js?v=32');
   const s = await m.getDocs(m.collection(m.db, 'custosPedidos'));
   return s.docs.map((d) => d.data().custo);
 });
@@ -211,7 +211,7 @@ console.log('\nSegurança: cliente não lê custos');
 await cli.goto(`${SITE}/index.html`);
 await cli.waitForSelector('.produto');
 const tentar = (col, id) => cli.evaluate(async ([col, id]) => {
-  const m = await import('/js/firebase-config.js?v=31');
+  const m = await import('/js/firebase-config.js?v=32');
   try { if (id) await m.getDoc(m.doc(m.db, col, id)); else await m.getDocs(m.collection(m.db, col)); return 'permitido'; } catch (e) { return e.code; }
 }, [col, id]);
 check((await tentar('custos', 'fichas')) === 'permission-denied', 'cliente não lê custos/fichas');
@@ -239,7 +239,7 @@ await pc.click('[data-cu="ficha"][data-v="sabores"]');
 await pc.screenshot({ path: `${shots}/09-pc-sabores.png`, fullPage: true });
 
 console.log('\nTamanho desligado (Média) some da área de custos');
-await pc.evaluate(async () => { const m = await import('/js/firebase-config.js?v=31'); await m.updateDoc(m.doc(m.db, 'produtos', 'pizza-media'), { disponivel: false }); });
+await pc.evaluate(async () => { const m = await import('/js/firebase-config.js?v=32'); await m.updateDoc(m.doc(m.db, 'produtos', 'pizza-media'), { disponivel: false }); });
 await pc.waitForTimeout(1200);
 await pc.click('[data-cu="tab"][data-v="lucro"]');
 let txt = await pc.textContent('#cu-corpo');

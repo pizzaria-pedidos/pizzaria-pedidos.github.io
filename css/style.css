@@ -812,3 +812,11 @@ body.modo-balcao nav.abas { display: none !important; }
 .cu-salvo.ok { background: #e6f4ea; color: #1e7b34; }
 .cu-salvo.salvando { background: var(--superficie-2); color: var(--texto-2); }
 .cu-salvo.erro { background: #fde8e8; color: #b42318; }
+
+/* 🏦 Chave Pix em destaque */
+.caixa-pix { background: #e6f6f1; border: 2px solid #32bcad; border-radius: var(--raio-peq); padding: 14px; margin: 12px 0; text-align: left; display: flex; flex-direction: column; gap: 8px; }
+.caixa-pix .pix-linha { font-size: 1.05rem; line-height: 1.4; word-break: break-all; color: #0b3d36; }
+.caixa-pix .pix-rot { font-weight: 800; }
+.caixa-pix .pix-chave { font-size: 1.2rem; letter-spacing: 0.02em; user-select: all; -webkit-user-select: all; }
+.caixa-pix small { color: #2f5f58; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .caixa-pix { background: #0f2e2a; border-color: #32bcad; } :root:not([data-theme='light']) .caixa-pix .pix-linha { color: #d9f5f0; } :root:not([data-theme='light']) .caixa-pix small { color: #a8d8cf; } }

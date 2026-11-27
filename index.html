@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://firestore.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=31">
+  <link rel="stylesheet" href="css/style.css?v=32">
 </head>
 <body class="pg-cliente">
   <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
@@ -188,6 +188,7 @@
     <div class="sucesso-icone">✅</div>
     <h2>Pedido enviado!</h2>
     <p id="sucesso-texto">Estamos abrindo o WhatsApp com o resumo do seu pedido. É só tocar em <b>enviar</b> ➤</p>
+    <div id="sucesso-pix" class="caixa-pix" hidden></div>
     <a class="btn btn-whats btn-bloco btn-grande" id="sucesso-link" href="#">Se o WhatsApp não abriu, toque aqui</a>
     <button class="btn btn-sec btn-bloco" type="button" id="sucesso-voltar">Voltar ao cardápio</button>
   </div>
@@ -218,6 +219,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="js/cliente.js?v=31"></script>
+  <script type="module" src="js/cliente.js?v=32"></script>
 </body>
 </html>

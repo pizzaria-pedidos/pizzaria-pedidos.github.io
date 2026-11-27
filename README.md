@@ -8,7 +8,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **`admin.html`**: painel (pedidos com som, cardápio, clientes, ajustes)
 - HTML + CSS + JavaScript puro, sem build. Firebase (Firestore + Authentication). Hospedagem no GitHub Pages.
 
-## ✅ Status atual (27/11/2026): no ar
+## ✅ Status atual (28/11/2026): no ar
 
 | | |
 |---|---|
@@ -95,6 +95,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **Novidade de 27/11/2026: 🏪 Pedido no balcão.** Botão no painel para você mesmo registrar o pedido de quem chegou na porta ou ligou. Versão dos arquivos `?v=29`.
 - **Correção de 27/11/2026 (custos que "não salvavam"):** com o painel aberto em dois lugares ao mesmo tempo (celular e notebook, ou duas abas), um aparelho podia gravar a ficha inteira por cima e apagar o que o outro tinha salvo (foi o que sumiu com o custo das bebidas e o preço da Calabresa/Frango). Agora cada aparelho grava **só o que mudou** e junta o que vem do outro. No topo da área de custos aparece **✓ Tudo salvo**, **💾 Salvando…** ou **⚠️ Não salvou — tentando de novo…**. Versão dos arquivos `?v=30`.
 - **Novidade de 27/11/2026: 🗑️ Excluir pedido** em "⋯ Mais opções" do pedido (para pedido de teste ou lançado por engano). Versão dos arquivos `?v=31`.
+- **Correção de 28/11/2026: chave Pix.** A chave estava salva, mas só aparecia numa linha pequena do carrinho e **não ia na mensagem do WhatsApp**. Agora ela vai na mensagem ("🏦 *Chave Pix:* …", logo abaixo do pagamento), aparece em destaque no carrinho e na tela "Pedido enviado", com botão **📋 Copiar chave Pix**. Versão dos arquivos `?v=32`.
 - **Teste de 25/11/2026 (desfeito):** a `?v=23` mostrava a foto da bebida sempre inteira, com sobras brancas. O Eduardo não gostou, e a `?v=24` voltou ao jeito anterior: a foto preenche o quadro todo, como nas pizzas.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
@@ -356,5 +357,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=31` → `?v=32` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=32` → `?v=33` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

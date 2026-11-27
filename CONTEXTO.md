@@ -1,6 +1,6 @@
 # 🍕 CONTEXTO DO PROJETO: leia isto primeiro
 
-> **Para o Claude do próximo chat:** este arquivo resume tudo o que foi construído e decidido até 27/11/2026.
+> **Para o Claude do próximo chat:** este arquivo resume tudo o que foi construído e decidido até 28/11/2026.
 > Leia este arquivo inteiro. Depois leia o `README.md` (detalhes de uso) e o código antes de propor qualquer mudança.
 > O conteúdo deste repositório é **exatamente o que está no ar**.
 
@@ -56,7 +56,7 @@ CONTEXTO.md       este arquivo
 testes/           testes automáticos (emulador Firebase + Playwright). Veja testes/LEIA-ME.md
 ```
 
-⚠️ **Versão dos arquivos: hoje é `?v=31`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=32`) **em todos os lugares**. Depois rode `python3 testes/versao.py 32` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
+⚠️ **Versão dos arquivos: hoje é `?v=32`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=33`) **em todos os lugares**. Depois rode `python3 testes/versao.py 33` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
 
 ## 4. Dados no Firestore
 
@@ -91,6 +91,7 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
 - **🕒 Horário:** a loja abre e fecha **sozinha** pelo horário do painel, sempre na **hora de Salvador (UTC−3)**, nunca no fuso do celular (`statusLoja` em `js/utils.js`). Fora do horário, o botão de finalizar fica bloqueado ("Loja fechada — abrimos hoje às 18h").
 - Mensagem do WhatsApp:
   - começa com "🍕 *Código do seu pedido: K7Q2M9*" (6 caracteres, sem 0/O/1/I/L);
+  - com pagamento **Pix**, traz logo abaixo do pagamento a linha **"🏦 *Chave Pix:* <chave>"** + "_Depois de pagar, mande o comprovante aqui._" (28/11/2026: antes a chave não ia na mensagem e um cliente ficou sem ela). A chave também aparece em destaque (`caixaPixHTML`, quadro verde com "📋 Copiar chave Pix") no carrinho e na tela "Pedido enviado". Chave do Eduardo em 28/11: telefone 71993695329;
   - termina com o **tempo de espera estimado**;
   - **NÃO** mostra "cliente novo / Nº pedido" (isso fica só no painel).
 
@@ -177,4 +178,4 @@ Veja `testes/LEIA-ME.md`. Resumo:
 - o site é servido localmente;
 - o Playwright faz o papel do cliente e do admin.
 
-São 16 baterias e ~385 verificações. Todas passavam na versão `?v=31`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.
+São 16 baterias e ~385 verificações. Todas passavam na versão `?v=32`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.

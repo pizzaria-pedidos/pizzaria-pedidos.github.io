@@ -4,8 +4,8 @@
 import {
   app, db, configurado, doc, getDoc, getDocs, setDoc, updateDoc, onSnapshot, collection, query, limit,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=31';
-import * as U from './utils.js?v=31';
+} from './firebase-config.js?v=32';
+import * as U from './utils.js?v=32';
 
 const { esc, fmtBRL } = U;
 // 🏪 Modo balcão: o dono, logado no painel, faz o pedido pelo cliente que está na porta (ou no telefone).
@@ -932,9 +932,8 @@ function renderCarrinho() {
     .join('');
   $('#campo-troco').hidden = S.checkout.pagamento !== 'dinheiro';
   $('#info-pix').hidden = S.checkout.pagamento !== 'pix';
-  $('#info-pix').innerHTML = l.chavePix
-    ? `Chave Pix: <code>${esc(l.chavePix)}</code> <button type="button" class="link" id="copiar-pix">Copiar</button><br><small>Envie o comprovante pelo WhatsApp junto com o pedido.</small>`
-    : 'A chave Pix será enviada pelo WhatsApp.';
+  $('#info-pix').className = l.chavePix ? 'caixa-pix' : 'info-caixa';
+  $('#info-pix').innerHTML = l.chavePix ? caixaPixHTML(l.chavePix) : 'A chave Pix será enviada pelo WhatsApp.';
 
   const sub = subtotal(), tx = taxa();
   const faltaMin = l.pedidoMinimo && sub < l.pedidoMinimo ? l.pedidoMinimo - sub : 0;
@@ -965,9 +964,6 @@ $('#tela-carrinho').addEventListener('click', (e) => {
     S.carrinho = S.carrinho.filter((x) => x.uid !== r.dataset.remover);
     salvarCarrinho(); renderCarrinho(); renderBarra();
     return;
-  }
-  if (e.target.id === 'copiar-pix') {
-    navigator.clipboard?.writeText(S.loja.chavePix).then(() => U.toast('Chave Pix copiada ✓'), () => U.toast('Não foi possível copiar'));
   }
 });
 $('#tela-carrinho').addEventListener('change', (e) => {
@@ -1125,6 +1121,8 @@ function montarMensagem(p, info) {
     ? `Dinheiro (${p.troco ? `troco para ${fmtBRL(p.troco)}` : 'sem troco'})`
     : U.PAGAMENTOS[p.pagamento];
   L.push(`💳 *Pagamento:* ${pag}`);
+  // a chave Pix vai na mensagem: o cliente vê no próprio WhatsApp e copia de lá
+  if (p.pagamento === 'pix' && S.loja.chavePix) L.push('', `🏦 *Chave Pix:* ${S.loja.chavePix.trim()}`, '_Depois de pagar, mande o comprovante aqui._');
   L.push('', `Subtotal: ${fmtBRL(p.subtotal)}`);
   if (p.tipo === 'entrega') L.push(`Taxa de entrega: ${p.taxaEntrega ? fmtBRL(p.taxaEntrega) : 'Grátis'}`);
   L.push(`*TOTAL: ${fmtBRL(p.total)}*`);
@@ -1186,6 +1184,7 @@ $('#btn-finalizar').addEventListener('click', async () => {
   fecharTodasCamadas();
   $('#sucesso-link').href = url;
   $('#sucesso-texto').innerHTML = `${info.codigo ? `Código do seu pedido: <b>${info.codigo}</b>. ` : ''}Estamos abrindo o WhatsApp com o resumo. É só tocar em <b>enviar</b> ➤`;
+  mostrarPixSucesso(pedido);
   $('#tela-sucesso').hidden = false;
   setTimeout(() => { window.location.href = url; }, 400);
 });
@@ -1378,6 +1377,7 @@ function sucessoBalcao(pedido, info) {
   $('#tela-sucesso').hidden = false;
   $('#tela-sucesso h2').textContent = 'Pedido registrado!';
   $('#sucesso-texto').innerHTML = `Código <b>${esc(info.codigo || '')}</b> · ${esc(pedido.clienteNome)} · ${fmtBRL(pedido.total)}.<br>Já está na lista de <b>Pedidos</b> do painel.`;
+  mostrarPixSucesso(pedido);
   const link = $('#sucesso-link');
   link.hidden = !tel;
   if (tel) {
@@ -1391,3 +1391,32 @@ function sucessoBalcao(pedido, info) {
   salvarCarrinho();
   renderBarra();
 }
+
+// =====================================================================
+//  🏦 Chave Pix em destaque (carrinho, tela de pedido enviado e mensagem do WhatsApp)
+// =====================================================================
+function caixaPixHTML(chave) {
+  return `<div class="pix-linha"><span class="pix-rot">🏦 Chave Pix:</span> <b class="pix-chave">${esc(chave.trim())}</b></div>
+    <button type="button" class="btn btn-sec btn-peq" data-copiar-pix>📋 Copiar chave Pix</button>
+    <small>Depois de pagar, mande o comprovante no WhatsApp da pizzaria.</small>`;
+}
+function copiarPix() {
+  const chave = (S.loja.chavePix || '').trim();
+  const ok = () => U.toast('Chave Pix copiada ✓');
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(chave).then(ok, copiarAntigo);
+  else copiarAntigo();
+  function copiarAntigo() {   // navegadores antigos
+    const t = document.createElement('textarea');
+    t.value = chave; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    try { document.execCommand('copy') ? ok() : U.toast(`Chave Pix: ${chave}`); } catch { U.toast(`Chave Pix: ${chave}`); }
+    t.remove();
+  }
+}
+function mostrarPixSucesso(pedido) {
+  const el = $('#sucesso-pix');
+  const mostrar = pedido.pagamento === 'pix' && !!(S.loja.chavePix || '').trim();
+  el.hidden = !mostrar;
+  el.innerHTML = mostrar ? caixaPixHTML(S.loja.chavePix) : '';
+}
+document.addEventListener('click', (e) => { if (e.target.closest('[data-copiar-pix]')) copiarPix(); });

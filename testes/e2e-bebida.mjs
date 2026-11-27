@@ -7,7 +7,7 @@ const { chromium, devices } = createRequire(import.meta.url)(process.env.PLAYWRI
 const DIR = path.dirname(new URL(import.meta.url).pathname);
 const SITE = 'http://127.0.0.1:5500';
 const FB = path.join(DIR, 'node_modules/firebase');
-const V = 'v=31';
+const V = 'v=32';
 const shots = path.join(DIR, 'shots-bebida');
 fs.mkdirSync(shots, { recursive: true });
 let ok = 0, falhas = 0;
@@ -58,6 +58,10 @@ for (const d of await adm.$$('.horario-linha')) {
 await adm.click('#cfg-salvar');
 await toastTem(adm, 'salvos');
 
+await adm.evaluate(async (V) => {
+  const m = await import(`/js/firebase-config.js?${V}`);
+  await m.setDoc(m.doc(m.db, 'config', 'loja'), { chavePix: '71993695329' }, { merge: true });
+}, V);
 const ctxC = await ctxNovo({ ...devices['iPhone 13'] });
 let url = null;
 await ctxC.route('https://api.whatsapp.com/**', (route) => { url = route.request().url(); route.fulfill({ body: 'ok', contentType: 'text/html' }); });
@@ -112,12 +116,24 @@ check(cart.find((i) => i.produtoId === 'refri-2l')?.qtd === 2, 'Refrigerante 2L 
 await cli.locator('#tela-carrinho label', { hasText: 'Retirar no local' }).click();
 check(await cli.isChecked('input[name="tipo"][value="retirada"]'), 'escolheu Retirar no local');
 await cli.locator('#pagamentos label', { hasText: 'Pix' }).click();
+const pixBox = await cli.textContent('#info-pix');
+check(await cli.isVisible('#info-pix.caixa-pix') && pixBox.includes('🏦 Chave Pix:') && pixBox.includes('71993695329') && await cli.isVisible('#info-pix [data-copiar-pix]'), 'carrinho com Pix: quadro "🏦 Chave Pix: 71993695329" + "📋 Copiar"');
+await ctxC.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
+await cli.click('#info-pix [data-copiar-pix]');
+await toastTem(cli, 'Chave Pix copiada');
+check(true, 'botão copiar: "Chave Pix copiada ✓"');
+await cli.locator('#info-pix').scrollIntoViewIfNeeded();
+await cli.screenshot({ path: `${shots}/02-carrinho-pix.png` });
 await cli.screenshot({ path: `${shots}/02-carrinho.png`, fullPage: true });
+await cli.evaluate(() => { window.__pix = null; new MutationObserver(() => { const el = document.getElementById('sucesso-pix'); if (el && !el.hidden && !window.__pix) window.__pix = el.textContent; }).observe(document.body, { subtree: true, attributes: true, childList: true }); });
 await cli.click('#btn-finalizar');
+const pixSucesso = await cli.waitForFunction(() => window.__pix, null, { timeout: 5000 }).then((h) => h.jsonValue()).catch(() => '');
+check(pixSucesso.includes('🏦 Chave Pix:') && pixSucesso.includes('71993695329') && pixSucesso.includes('Copiar'), 'tela "Pedido enviado": chave Pix com "📋 Copiar"');
 await cli.waitForTimeout(2500);
 const msg = url ? decodeURIComponent(url.split('text=')[1]) : '';
 check(/2x\s*Refrigerante 2L/.test(msg) && /2x\s*Refrigerante lata/.test(msg), 'WhatsApp: "2x Refrigerante 2L" e "2x Refrigerante lata"');
 check(msg.includes('Calabresa') && msg.includes('Mussarela'), 'WhatsApp: as duas pizzas');
+check(msg.includes('💳 *Pagamento:* Pix\n\n🏦 *Chave Pix:* 71993695329'), 'WhatsApp: "🏦 *Chave Pix:* 71993695329" logo abaixo do pagamento');
 const peds = await adm.evaluate(async (V) => {
   const m = await import(`/js/firebase-config.js?${V}`);
   return (await m.getDocs(m.collection(m.db, 'pedidos'))).docs.map((d) => d.data());

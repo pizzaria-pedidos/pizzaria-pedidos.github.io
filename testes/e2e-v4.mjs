@@ -101,7 +101,7 @@ check(msg.includes('*Cliente:* João Silva (Joãozinho)'), 'mensagem do WhatsApp
 
 await adm.waitForSelector('.pedido-card .pc-num', { timeout: 8000 });
 const apelidoSalvo = await adm.evaluate(async () => {
-  const m = await import('/js/firebase-config.js?v=31');
+  const m = await import('/js/firebase-config.js?v=32');
   return (await m.getDoc(m.doc(m.db, 'clientes', '5571999998888'))).data()?.apelido || '';
 });
 if (ANTIGAS) {
@@ -194,7 +194,7 @@ await adm.fill('#form-crud [data-tam="Grande"]', '35');
 await adm.click('#crud-salvar');
 await toastTem(adm, 'Salvo');
 const precos = await adm.evaluate(async () => {
-  const m = await import('/js/firebase-config.js?v=31');
+  const m = await import('/js/firebase-config.js?v=32');
   return (await m.getDoc(m.doc(m.db, 'sabores', 'calabresa'))).data().precos;
 });
 check(precos.Grande === 35, 'preço da Grande salvo (R$ 35)');
