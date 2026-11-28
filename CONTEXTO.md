@@ -56,7 +56,7 @@ CONTEXTO.md       este arquivo
 testes/           testes automáticos (emulador Firebase + Playwright). Veja testes/LEIA-ME.md
 ```
 
-⚠️ **Versão dos arquivos: hoje é `?v=33`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=34`) **em todos os lugares**. Depois rode `python3 testes/versao.py 34` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
+⚠️ **Versão dos arquivos: hoje é `?v=34`.** Todo `<script>`, `<link>` e `import` usa `?v=N`, para o celular não misturar versão nova e antiga. **Ao mudar qualquer JS ou CSS**, troque para o próximo número (`?v=35`) **em todos os lugares**. Depois rode `python3 testes/versao.py 35` para os testes acompanharem. Para achar: `grep -rn "?v=" index.html admin.html js`.
 
 ## 4. Dados no Firestore
 
@@ -106,7 +106,8 @@ testes/           testes automáticos (emulador Firebase + Playwright). Veja tes
   - "Preparo médio" do dia.
 - **Cardápio:** CRUD; **preço por grupo** de sabores; fotos da **galeria** (o painel reduz o tamanho sozinho).
 - **👁️ Esconder valores** (28/11/2026): botão `#btn-olho` no título de Pedidos; `mascararValores()` troca todo "R$ 0,00" do `#v-pedidos` por "R$ •••" depois de cada `renderPedidos()`. Guardado em `localStorage` (`pz_ocultar_valores`): **cada aparelho é independente**, como o Eduardo pediu.
-- **Sabores grifados** (28/11/2026): `<mark class="sabor">` amarelo (#ffe066) no card do pedido (`itensHTML`).
+- **Sabores grifados** (28/11/2026): `<mark class="sabor">` no card do pedido (`itensHTML`). O Eduardo achou o amarelo forte "grosseiro e colado": ficou **amarelo transparente** (rgba(255,212,59,.32); no escuro .22 com texto #ffe9a8), peso 700, `margin-right` 6px e linha 1.9. **Não voltar ao amarelo forte.**
+- **Som sempre ligado** (28/11/2026, pedido dele: "não quero clicar em ativar"): o navegador exige um gesto, então o áudio é liberado no clique de "Entrar" e em qualquer `pointerdown`/`keydown`/`touchstart`; e o painel pede **permissão de notificação** (no login/no primeiro toque). Com ela, `notificarPedido()` mostra notificação do sistema (com o som do sistema) sempre que o áudio do navegador está bloqueado ou a aba está escondida/minimizada. A faixa `#ativar-som` só aparece se o áudio estiver bloqueado **e** sem notificação. No Edge do notebook dá para liberar de vez em `edge://settings/content/mediaAutoplay` → Permitir (passo a passo no README).
 - **WhatsApp no PC** (28/11/2026): no computador (`NO_PC`, sem "Mobile" no navegador), os links do card usam `https://web.whatsapp.com/send?phone=…&text=…` com `target="whatsapp"` e **sem** `rel="noopener"` (senão o navegador não reaproveita a aba), para o WhatsApp Web abrir sempre na mesma aba. No celular continua `api.whatsapp.com` (abre o app). Funções `linkZap()` e `alvoZap()` em `js/admin.js`.
 - **Faixa "ativar o som"**: some só depois que o toque termina (`avisoSomDepoisDoToque`); se sumisse no `pointerdown`, a tela subia e o primeiro toque caía em outro botão.
 - **🗑️ Excluir pedido** (27/11/2026): em "⋯ Mais opções" do card (`confirmarExcluirPedido` em `js/admin.js`). Apaga `pedidos/{id}` e `custosPedidos/{id}`; se o cliente existe em `clientes`, tira o id de `ultimosPedidos` e, se o pedido não estava cancelado, desconta `totalPedidos` e `totalGasto`. Criado para apagar o pedido de teste "Chacal" (balcão, sem WhatsApp, 26/11), que o Eduardo vai excluir sozinho.
@@ -182,4 +183,4 @@ Veja `testes/LEIA-ME.md`. Resumo:
 - o site é servido localmente;
 - o Playwright faz o papel do cliente e do admin.
 
-São 17 baterias e ~410 verificações. Todas passavam na versão `?v=33`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.
+São 17 baterias e ~410 verificações. Todas passavam na versão `?v=34`. Na primeira bateria de uma máquina nova, os testes de segurança podem falhar porque o emulador liga antes do arquivo de regras existir. Rode de novo para confirmar. Rode-as antes e depois de qualquer mudança.

@@ -9,7 +9,7 @@
 //    CALABRESA FATIADA;2,094;kg;24,99;52,33        (produto;qtd;unidade;preço;total)
 //  Linhas de título, subtotal e total são ignoradas sozinhas.
 // =====================================================================
-import { norm } from './utils.js?v=33';
+import { norm } from './utils.js?v=34';
 
 /** "4,154" → 4.154 · "1.234,56" → 1234.56 · "36.99" → 36.99 */
 export function numBR(v) {

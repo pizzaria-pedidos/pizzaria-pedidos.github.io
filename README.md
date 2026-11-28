@@ -103,6 +103,7 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
   - **No notebook, o 📲 Informar cliente abre o WhatsApp Web direto e sempre na mesma aba**, em vez de abrir uma aba nova a cada aviso.
   - Correção: o primeiro toque depois de abrir o painel às vezes "errava o botão", porque a faixa "ativar o som" sumia no meio do toque.
   - Versão dos arquivos `?v=33`.
+- **Ajustes de 28/11/2026 (3):** grifo dos sabores mais suave (amarelo transparente, com espaço entre eles); **som sempre ligado**: o toque em "Entrar" já libera o som, qualquer toque ou tecla também, e com as **notificações** permitidas o pedido novo avisa mesmo sem tocar na tela ou com o painel minimizado. Versão dos arquivos `?v=34`.
 - **Teste de 25/11/2026 (desfeito):** a `?v=23` mostrava a foto da bebida sempre inteira, com sobras brancas. O Eduardo não gostou, e a `?v=24` voltou ao jeito anterior: a foto preenche o quadro todo, como nas pizzas.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
@@ -228,7 +229,13 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
   - O **Faturamento** do dia e o **Balanço** (🔒) usam o valor recebido: a venda e o lucro caem, e o custo continua o mesmo, porque os ingredientes foram usados.
   - Errou? Toque de novo em **💸 Mudar o ajuste de valor** e corrija, ou toque em **Tirar ajuste**.
   - O cadastro do cliente (quanto ele já gastou) não muda.
-- **Pedidos:** deixe o painel aberto (PC ou celular). Quando chega um pedido novo, toca um alerta. No primeiro acesso, toque na faixa vermelha "ativar o som", porque o navegador só libera áudio depois de um toque. Avance o status com o botão principal. Cancelar um pedido desconta ele das estatísticas do cliente.
+- **Pedidos:** deixe o painel aberto (PC ou celular). Quando chega um pedido novo, toca um alerta.
+- **Som sempre ligado (sem precisar tocar em "ativar"):** os navegadores só deixam um site tocar som depois de um toque na página. Por isso:
+  1. **Ao entrar** com e-mail e senha, o toque em "Entrar" já libera o som.
+  2. Se o painel já estava logado e você só abriu a página, **qualquer toque ou tecla** libera o som.
+  3. **Notificações (recomendado):** na primeira vez, o navegador pergunta se o site pode mostrar notificações. Toque em **Permitir**. A partir daí, todo pedido novo aparece como **notificação do Windows/celular, com o som do sistema**, mesmo sem nenhum toque na tela e mesmo com o painel minimizado ou em outra aba.
+  4. **No notebook com Microsoft Edge, para o som do painel tocar sempre:** abra `edge://settings/content/mediaAutoplay`, em **"Controle se o áudio e o vídeo são reproduzidos automaticamente nos sites"** escolha **Permitir** (ou, em **Permitir**, toque em **Adicionar** e cole `https://pizzaria-pedidos.github.io`). Depois recarregue o painel.
+  - A faixa "o navegador segurou o som" só aparece se o som estiver bloqueado **e** as notificações não estiverem permitidas. Avance o status com o botão principal. Cancelar um pedido desconta ele das estatísticas do cliente.
 - **Acabou um ingrediente:** em **Cardápio → Sabores**, busque, por exemplo, "catupiry" e toque em **Desativar todos**. Para um item só, use a chavinha. O site do cliente atualiza na hora, sem recarregar.
 - **Preço por grupo (Tradicionais / Especiais):** em **Cardápio → Sabores**, o quadro **"💰 Preço por grupo"** tem um preço para cada grupo. Ex.: Tradicionais R$ 35 e Especiais R$ 40. Toque em **Salvar e aplicar** e o preço vai para **todos** os sabores do grupo de uma vez.
   - Em cada sabor da lista, a caixinha ao lado escolhe o grupo dele. Basta um toque, e o preço já muda.
@@ -367,5 +374,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=33` → `?v=34` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=34` → `?v=35` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

@@ -7,7 +7,7 @@ const { chromium, devices } = createRequire(import.meta.url)(process.env.PLAYWRI
 const DIR = path.dirname(new URL(import.meta.url).pathname);
 const SITE = 'http://127.0.0.1:5500';
 const FB = path.join(DIR, 'node_modules/firebase');
-const V = 'v=33';
+const V = 'v=34';
 const shots = path.join(DIR, 'shots-painel');
 fs.mkdirSync(shots, { recursive: true });
 let ok = 0, falhas = 0;
@@ -104,7 +104,9 @@ await adm.click('[data-view="pedidos"]');
 await adm.waitForSelector('.pedido-card mark.sabor');
 const marks = await adm.$$eval('.pedido-card mark.sabor', (ms) => ms.map((m) => [m.textContent, getComputedStyle(m).backgroundColor]));
 check(marks.length === 2 && marks[0][0] === 'Calabresa' && marks[1][0] === 'Frango c/ Catupiry', `sabores grifados: ${marks.map((m) => m[0]).join(' / ')}`);
-check(marks.every((m) => m[1] === 'rgb(255, 224, 102)'), `cor do grifo: amarelo (${marks[0]?.[1]})`);
+check(marks.every((m) => m[1] === 'rgba(255, 212, 59, 0.32)'), `grifo amarelo suave, transparente (${marks[0]?.[1]})`);
+await adm.locator('.pedido-card mark.sabor').first().scrollIntoViewIfNeeded();
+await adm.screenshot({ path: `${shots}/03-sabores.png` });
 
 console.log('\n4) 👁️ Esconder valores — só neste aparelho');
 const ctxN = await ctxNovo({ viewport: { width: 1280, height: 900 } });
@@ -125,6 +127,12 @@ check(txt.includes('R$ •••') && txt.includes('Calabresa'), 'aparece "R$ �
 check((await nb.textContent('#btn-olho')) === '🙈', 'botão vira 🙈');
 await nb.screenshot({ path: `${shots}/02-valores-escondidos.png` });
 check(await temRS(adm), 'celular continua mostrando os valores (cada aparelho é independente)');
+// notificação do sistema: painel em outra aba/minimizado (ou som bloqueado) → aparece e toca
+await nb.evaluate(() => {
+  window.__notifs = [];
+  window.Notification = class { constructor(t, o) { window.__notifs.push([t, o?.body]); } static get permission() { return 'granted'; } static requestPermission() { return Promise.resolve('granted'); } };
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+});
 // chega um pedido novo: continua escondido
 await cli.goto(`${SITE}/index.html`);
 await cli.waitForSelector('.produto');
@@ -135,6 +143,9 @@ await cli.click('#btn-finalizar');
 await nb.waitForFunction(() => document.querySelectorAll('.pedido-card').length === 2);
 await nb.waitForTimeout(300);
 check(!(await temRS(nb)), 'pedido novo chegou: os valores continuam escondidos');
+const notifs = await nb.evaluate(() => window.__notifs);
+check(notifs.length === 1 && notifs[0][0].startsWith('🍕 Novo pedido') && notifs[0][1].includes('Maria Souza'), `painel minimizado: notificação do sistema "🍕 Novo pedido … — Maria Souza" (${JSON.stringify(notifs)})`);
+await nb.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); });
 await nb.reload();
 await nb.waitForSelector('.pedido-card');
 await nb.waitForTimeout(500);

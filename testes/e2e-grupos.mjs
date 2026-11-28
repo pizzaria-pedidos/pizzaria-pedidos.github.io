@@ -7,7 +7,7 @@ const { chromium, devices } = createRequire(import.meta.url)(process.env.PLAYWRI
 const DIR = path.dirname(new URL(import.meta.url).pathname);
 const SITE = 'http://127.0.0.1:5500';
 const FB = path.join(DIR, 'node_modules/firebase');
-const V = 'v=33';
+const V = 'v=34';
 const shots = path.join(DIR, 'shots-grupos');
 fs.mkdirSync(shots, { recursive: true });
 let ok = 0, falhas = 0;

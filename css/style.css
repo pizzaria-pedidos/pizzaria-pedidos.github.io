@@ -829,6 +829,7 @@ body.modo-balcao nav.abas { display: none !important; }
 .btn-olho[aria-pressed="true"] { background: var(--superficie-2); }
 
 /* sabores grifados no card do pedido */
-mark.sabor { background: #ffe066; color: #3a2a00; font-weight: 800; padding: 1px 6px; border-radius: 4px; margin: 0 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) mark.sabor { background: #ffd43b; color: #2b1f00; } }
-:root[data-theme='dark'] mark.sabor { background: #ffd43b; color: #2b1f00; }
+mark.sabor { background: rgba(255, 212, 59, 0.32); color: inherit; font-weight: 700; padding: 0 3px; border-radius: 3px; margin-right: 6px; }
+.pc-itens .det:has(mark.sabor) { line-height: 1.9; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) mark.sabor { background: rgba(255, 212, 59, 0.22); color: #ffe9a8; } }
+:root[data-theme='dark'] mark.sabor { background: rgba(255, 212, 59, 0.22); color: #ffe9a8; }

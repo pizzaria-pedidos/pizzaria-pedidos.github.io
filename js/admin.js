@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp, deleteField, arrayRemove,
-} from './firebase-config.js?v=33';
+} from './firebase-config.js?v=34';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=33';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=33';
+import * as U from './utils.js?v=34';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=34';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -47,7 +47,8 @@ const ERROS_LOGIN = {
 };
 $('#form-login').addEventListener('submit', async (e) => {
   e.preventDefault();
-  garantirAudio();
+  garantirAudio();       // o toque em "Entrar" já libera o som
+  pedirNotificacao();    // e pede (uma vez só) para mostrar notificações de pedido novo
   const btn = $('#login-btn');
   btn.disabled = true;
   btn.textContent = 'Entrando…';
@@ -178,10 +179,31 @@ function avisoSomDepoisDoToque() {
   document.addEventListener('click', f, { once: true });
   setTimeout(() => { document.removeEventListener('click', f); atualizarAvisoSom(); }, 1500);
 }
-document.addEventListener('pointerdown', garantirAudio);
+// qualquer toque, clique ou tecla já libera o som (o navegador exige um gesto da pessoa)
+['pointerdown', 'keydown', 'touchstart'].forEach((ev) => document.addEventListener(ev, () => { garantirAudio(); pedirNotificacao(); }, { passive: true }));
+const somLivre = () => !!audioCtx && audioCtx.state === 'running';
 function atualizarAvisoSom() {
-  const precisa = S.user && S.som && (!audioCtx || audioCtx.state !== 'running');
+  // com as notificações do sistema permitidas, o aviso de pedido novo toca mesmo com o som do
+  // navegador bloqueado — aí não precisa mostrar faixa nenhuma
+  const notifOk = 'Notification' in window && Notification.permission === 'granted';
+  const precisa = S.user && S.som && !somLivre() && !notifOk;
   $('#ativar-som').hidden = !precisa;
+}
+// Notificação do Windows/Android: aparece e toca o som do sistema mesmo sem nenhum toque na tela
+// e mesmo com o painel minimizado ou em outra aba.
+function pedirNotificacao() {
+  try {
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().then(atualizarAvisoSom).catch(() => {});
+  } catch { /* navegador sem notificações */ }
+}
+function notificarPedido(p) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const n = new Notification(`🍕 Novo pedido ${U.codigoPedido(p.id)}`, {
+      body: `${p.clienteNome}${p.origem === 'balcao' ? ' · 🏪 balcão' : ''}`, tag: `pedido-${p.id}`, renotify: true, requireInteraction: true,
+    });
+    n.onclick = () => { window.focus(); mostrarView('pedidos'); n.close(); };
+  } catch { /* alguns celulares só aceitam notificação por service worker */ }
 }
 /** Toca uma nota: frequência (Hz), início (s), duração (s), forma da onda, volume */
 function nota(freq, inicio, dur, tipo = 'sine', vol = 0.5) {
@@ -267,6 +289,8 @@ function ouvirNovos() {
       if (chegaram.length) {
         tocarAlerta();
         const p = chegaram[0];
+        // som bloqueado pelo navegador, ou painel minimizado/em outra aba: notificação do sistema (com som)
+        if (!somLivre() || document.hidden) notificarPedido(p);
         U.toast(`🍕 Novo pedido ${U.codigoPedido(p.id)} — ${p.clienteNome}`);
       }
     },
