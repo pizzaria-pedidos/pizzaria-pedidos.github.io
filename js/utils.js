@@ -66,6 +66,8 @@ export const DEFAULT_LOJA = {
   tempoRetirada: '',  // ex.: "20 a 30 minutos"
   pagamentos: ['pix', 'cartao', 'dinheiro'],
   chavePix: '',
+  pixNome: '',    // nome de quem recebe o Pix (o cliente confere antes de pagar)
+  pixBanco: '',   // banco / instituição
   msgProntoEntrega: '',   // vazio = usa MSG_PRONTO_PADRAO.entrega
   msgProntoRetirada: '',  // vazio = usa MSG_PRONTO_PADRAO.retirada
   regraPrecoPizza: 'maior',

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=32">
+  <link rel="stylesheet" href="css/style.css?v=33">
 </head>
 <body class="pg-admin">
   <div id="aviso-config" class="aviso-config" hidden>⚠️ Firebase ainda não configurado. Edite <b>js/firebase-config.js</b> (veja o README).</div>
@@ -46,7 +46,7 @@
       <!-- Pedidos -->
       <section id="v-pedidos" class="view">
         <div class="view-topo">
-          <h1>Pedidos</h1>
+          <h1>Pedidos <button type="button" class="btn-olho" id="btn-olho" aria-pressed="false" title="Esconder os valores (R$) desta tela">👁️</button></h1>
           <div class="topo-botoes">
             <button type="button" class="btn btn-peq" id="btn-loja-toggle" data-toggle-loja>…</button>
             <button type="button" class="btn btn-peq" id="btn-entrega-toggle" data-toggle-entrega>…</button>
@@ -156,6 +156,10 @@
             <p class="campo"><span>Formas de pagamento aceitas</span></p>
             <div id="cfg-pagamentos" style="margin-bottom:12px"></div>
             <label class="campo"><span>Chave Pix (aparece para o cliente)</span><input name="chavePix" maxlength="120"></label>
+            <div class="linha-campos">
+              <label class="campo"><span>Nome de quem recebe o Pix</span><input name="pixNome" maxlength="80" placeholder="Ex.: Eduardo Magalhães"></label>
+              <label class="campo"><span>Banco / instituição</span><input name="pixBanco" maxlength="60" placeholder="Ex.: Nubank"></label>
+            </div>
           </div>
 
           <div class="cartao">
@@ -231,6 +235,6 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="js/admin.js?v=32"></script>
+  <script type="module" src="js/admin.js?v=33"></script>
 </body>
 </html>

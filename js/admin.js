@@ -4,13 +4,13 @@
 import {
   app, db, configurado, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, writeBatch, increment, serverTimestamp, Timestamp, deleteField, arrayRemove,
-} from './firebase-config.js?v=32';
+} from './firebase-config.js?v=33';
 // Mesma versão do SDK usada em firebase-config.js
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import * as U from './utils.js?v=32';
-import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=32';
+import * as U from './utils.js?v=33';
+import { iniciarCustos, pararCustos, sairCustos, abrirCadeado, custosCardapioMudou } from './custos.js?v=33';
 
 const { esc, fmtBRL } = U;
 const $ = (s, el = document) => el.querySelector(s);
@@ -167,9 +167,16 @@ let audioCtx = null;
 function garantirAudio() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume().then(atualizarAvisoSom);
+    if (audioCtx.state === 'suspended') audioCtx.resume().then(avisoSomDepoisDoToque);
   } catch { /* sem áudio */ }
-  atualizarAvisoSom();
+  avisoSomDepoisDoToque();
+}
+// A faixa "ativar o som" só some DEPOIS do toque terminar: se sumisse no meio, a tela subia
+// e o toque caía em outro botão (ex.: o primeiro toque no 👁️ depois de abrir o painel).
+function avisoSomDepoisDoToque() {
+  const f = () => setTimeout(atualizarAvisoSom, 0);
+  document.addEventListener('click', f, { once: true });
+  setTimeout(() => { document.removeEventListener('click', f); atualizarAvisoSom(); }, 1500);
 }
 document.addEventListener('pointerdown', garantirAudio);
 function atualizarAvisoSom() {
@@ -296,11 +303,12 @@ $('#f-status').addEventListener('change', () => renderPedidos());
 function itensHTML(itens) {
   return `<ul class="pc-itens">${itens.map((it) => {
     const det = [];
-    if (it.sabores?.length) det.push(`Sabores: ${it.sabores.map((s) => s.nome).join(', ')}`);
     if (it.borda) det.push(`Borda: ${it.borda.nome}`);
     if (it.adicionais?.length) det.push(`Adicionais: ${it.adicionais.map((a) => `${a.qtd}x ${a.nome}`).join(', ')}`);
     if (it.obs) det.push(`⚠️ Obs: ${it.obs}`);
-    return `<li><b>${it.qtd}x ${esc(it.nome)}</b> — ${fmtBRL(it.total)}${det.map((x) => `<span class="det">${esc(x)}</span>`).join('')}</li>`;
+    // sabores grifados em amarelo, para achar rápido
+    const sab = it.sabores?.length ? `<span class="det">Sabores: ${it.sabores.map((s) => `<mark class="sabor">${esc(s.nome)}</mark>`).join(' ')}</span>` : '';
+    return `<li><b>${it.qtd}x ${esc(it.nome)}</b> — ${fmtBRL(it.total)}${sab}${det.map((x) => `<span class="det">${esc(x)}</span>`).join('')}</li>`;
   }).join('')}</ul>`;
 }
 function enderecoTexto(p) {
@@ -378,8 +386,18 @@ function temposHTML(p) {
 function linkInformar(p) {
   const nome = apelidoDe(p.clienteTel) || String(p.clienteNome || '').split(' ')[0];
   const msg = U.mensagemPronto(S.loja, p, { nome, codigo: U.codigoPedido(p.id) });
-  return U.linkWhats(p.clienteTel, msg);
+  return linkZap(p.clienteTel, msg);
 }
+// No computador: abre direto o WhatsApp Web e SEMPRE na mesma aba ("whatsapp"), em vez de
+// uma aba nova a cada aviso. No celular: o link de sempre, que abre o aplicativo.
+const NO_PC = !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+function linkZap(tel, msg = '') {
+  if (!NO_PC) return U.linkWhats(tel, msg);
+  const num = String(tel || '').replace(/\D/g, '');
+  return `https://web.whatsapp.com/send?phone=${num}${msg ? `&text=${encodeURIComponent(msg)}` : ''}`;
+}
+// sem rel="noopener": com ele o navegador não reaproveita a aba pelo nome
+const alvoZap = () => (NO_PC ? 'target="whatsapp"' : 'target="_blank" rel="noopener"');
 
 function pedidoHTML(p, comAcoes = true) {
   const fluxo = U.fluxoStatus(p.tipo);
@@ -394,9 +412,9 @@ function pedidoHTML(p, comAcoes = true) {
     // balcão sem WhatsApp: não tem para quem mandar mensagem, só concluir
     principal = `<button type="button" class="btn btn-pronto" data-avancar="${esc(p.id)}" data-para="concluido">🏁 Entregue ao cliente</button>`;
   } else if (['saiu', 'pronto'].includes(p.status)) {
-    principal = `<a class="btn btn-whats" data-informar="${esc(p.id)}" href="${esc(linkInformar(p))}" target="_blank" rel="noopener">📲 Informar cliente</a>`;
+    principal = `<a class="btn btn-whats" data-informar="${esc(p.id)}" href="${esc(linkInformar(p))}" ${alvoZap()}>📲 Informar cliente</a>`;
   } else if (p.status === 'concluido' && p.clienteTel) {
-    principal = `<a class="btn btn-sec btn-peq" data-reavisar="${esc(p.id)}" href="${esc(linkInformar(p))}" target="_blank" rel="noopener">📲 Avisar de novo</a>`;
+    principal = `<a class="btn btn-sec btn-peq" data-reavisar="${esc(p.id)}" href="${esc(linkInformar(p))}" ${alvoZap()}>📲 Avisar de novo</a>`;
   }
   return `<article class="pedido-card ${esc(p.status)}">
     <div class="pc-topo">
@@ -418,7 +436,7 @@ function pedidoHTML(p, comAcoes = true) {
     <details class="pc-mais"><summary>⋯ Mais opções</summary>
       <label class="campo"><span>Mudar status / cancelar</span><select data-status="${esc(p.id)}" aria-label="Mudar status">${opcoes}</select></label>
       <button type="button" class="btn btn-sec btn-peq" data-ajustar="${esc(p.id)}">💸 ${p.ajuste ? 'Mudar o ajuste de valor' : 'Ajustar valor'}</button>
-      ${p.clienteTel ? `<a class="link" href="${esc(U.linkWhats(p.clienteTel))}" target="_blank" rel="noopener">Conversar no WhatsApp (sem mensagem)</a>` : ''}
+      ${p.clienteTel ? `<a class="link" href="${esc(linkZap(p.clienteTel))}" ${alvoZap()}>Conversar no WhatsApp (sem mensagem)</a>` : ''}
       <button type="button" class="link link-perigo" data-excluir="${esc(p.id)}">🗑️ Excluir pedido</button>
     </details>` : ''}
   </article>`;
@@ -431,6 +449,29 @@ function preparoMedio(lista) {
   const media = ts.reduce((a, b) => a + b, 0) / ts.length;
   return duracao(0, media);
 }
+
+// ---------- 👁️ Esconder os valores (R$) da tela de Pedidos — vale só neste aparelho ----------
+let ocultar = U.lsGet('pz_ocultar_valores', false);
+const RS = /R\$[\s\u00a0]*-?[\d.]+,\d{2}/g;
+function mascararValores() {
+  const v = $('#v-pedidos');
+  if (!v) return;
+  v.classList.toggle('valores-ocultos', ocultar);
+  const b = $('#btn-olho');
+  if (b) { b.textContent = ocultar ? '🙈' : '👁️'; b.setAttribute('aria-pressed', String(ocultar)); b.title = ocultar ? 'Mostrar os valores (R$)' : 'Esconder os valores (R$) desta tela'; }
+  if (!ocultar) return;
+  const w = document.createTreeWalker(v, NodeFilter.SHOW_TEXT);
+  const nos = [];
+  while (w.nextNode()) if (RS.test(w.currentNode.nodeValue)) nos.push(w.currentNode);
+  nos.forEach((n) => { RS.lastIndex = 0; n.nodeValue = n.nodeValue.replace(RS, 'R$ •••'); });
+  RS.lastIndex = 0;
+}
+$('#btn-olho').addEventListener('click', () => {
+  ocultar = !ocultar;
+  U.lsSet('pz_ocultar_valores', ocultar);
+  renderPedidos();   // redesenha com os valores (ou escondidos)
+  mascararValores();
+});
 
 function renderPedidos(carregando = false) {
   if (S.view !== 'pedidos') return;
@@ -446,12 +487,14 @@ function renderPedidos(carregando = false) {
   const el = $('#lista-pedidos-admin');
   if (carregando || !S.pedidosOk) {
     el.innerHTML = '<span class="sk sk-card"></span><span class="sk sk-card"></span>';
+    mascararValores();
     return;
   }
   el.innerHTML = lista.length
     ? lista.map((p) => pedidoHTML(p)).join('')
     : `<p class="vazio"><span class="emoji">🍕</span>${filtro ? 'Nenhum pedido com esse status.' : 'Nenhum pedido neste dia ainda.'}</p>`;
   atualizarEsperas();
+  mascararValores();
 }
 
 async function mudarStatus(id, novo, extra = {}) {
@@ -1370,6 +1413,8 @@ function preencherConfig() {
   f.elements.tempoEntrega.value = l.tempoEntrega || '';
   f.elements.tempoRetirada.value = l.tempoRetirada || '';
   f.elements.chavePix.value = l.chavePix;
+  f.elements.pixNome.value = l.pixNome || '';
+  f.elements.pixBanco.value = l.pixBanco || '';
   f.elements.msgProntoEntrega.value = l.msgProntoEntrega || U.MSG_PRONTO_PADRAO.entrega;
   f.elements.msgProntoRetirada.value = l.msgProntoRetirada || U.MSG_PRONTO_PADRAO.retirada;
   f.elements.ocultarIndisponiveis.checked = !!l.ocultarIndisponiveis;
@@ -1485,6 +1530,8 @@ $('#form-config').addEventListener('submit', async (e) => {
     tempoRetirada: f.elements.tempoRetirada.value.trim().slice(0, 40),
     pagamentos,
     chavePix: f.elements.chavePix.value.trim(),
+    pixNome: f.elements.pixNome.value.trim().slice(0, 80),
+    pixBanco: f.elements.pixBanco.value.trim().slice(0, 60),
     msgProntoEntrega: f.elements.msgProntoEntrega.value.trim().slice(0, 600),
     msgProntoRetirada: f.elements.msgProntoRetirada.value.trim().slice(0, 600),
     regraPrecoPizza: f.elements.regraPrecoPizza.value,

@@ -4,8 +4,8 @@
 import {
   app, db, configurado, doc, getDoc, getDocs, setDoc, updateDoc, onSnapshot, collection, query, limit,
   runTransaction, serverTimestamp,
-} from './firebase-config.js?v=32';
-import * as U from './utils.js?v=32';
+} from './firebase-config.js?v=33';
+import * as U from './utils.js?v=33';
 
 const { esc, fmtBRL } = U;
 // 🏪 Modo balcão: o dono, logado no painel, faz o pedido pelo cliente que está na porta (ou no telefone).
@@ -933,7 +933,7 @@ function renderCarrinho() {
   $('#campo-troco').hidden = S.checkout.pagamento !== 'dinheiro';
   $('#info-pix').hidden = S.checkout.pagamento !== 'pix';
   $('#info-pix').className = l.chavePix ? 'caixa-pix' : 'info-caixa';
-  $('#info-pix').innerHTML = l.chavePix ? caixaPixHTML(l.chavePix) : 'A chave Pix será enviada pelo WhatsApp.';
+  $('#info-pix').innerHTML = l.chavePix ? caixaPixHTML() : 'A chave Pix será enviada pelo WhatsApp.';
 
   const sub = subtotal(), tx = taxa();
   const faltaMin = l.pedidoMinimo && sub < l.pedidoMinimo ? l.pedidoMinimo - sub : 0;
@@ -1122,7 +1122,12 @@ function montarMensagem(p, info) {
     : U.PAGAMENTOS[p.pagamento];
   L.push(`💳 *Pagamento:* ${pag}`);
   // a chave Pix vai na mensagem: o cliente vê no próprio WhatsApp e copia de lá
-  if (p.pagamento === 'pix' && S.loja.chavePix) L.push('', `🏦 *Chave Pix:* ${S.loja.chavePix.trim()}`, '_Depois de pagar, mande o comprovante aqui._');
+  if (p.pagamento === 'pix' && S.loja.chavePix) {
+    L.push('', `🏦 *Chave Pix:* ${S.loja.chavePix.trim()}`);
+    if ((S.loja.pixNome || '').trim()) L.push(`👤 *Nome:* ${S.loja.pixNome.trim()}`);
+    if ((S.loja.pixBanco || '').trim()) L.push(`🏛️ *Banco:* ${S.loja.pixBanco.trim()}`);
+    L.push('_Depois de pagar, mande o comprovante aqui._');
+  }
   L.push('', `Subtotal: ${fmtBRL(p.subtotal)}`);
   if (p.tipo === 'entrega') L.push(`Taxa de entrega: ${p.taxaEntrega ? fmtBRL(p.taxaEntrega) : 'Grátis'}`);
   L.push(`*TOTAL: ${fmtBRL(p.total)}*`);
@@ -1395,8 +1400,11 @@ function sucessoBalcao(pedido, info) {
 // =====================================================================
 //  🏦 Chave Pix em destaque (carrinho, tela de pedido enviado e mensagem do WhatsApp)
 // =====================================================================
-function caixaPixHTML(chave) {
-  return `<div class="pix-linha"><span class="pix-rot">🏦 Chave Pix:</span> <b class="pix-chave">${esc(chave.trim())}</b></div>
+function caixaPixHTML() {
+  const l = S.loja;
+  return `<div class="pix-linha"><span class="pix-rot">🏦 Chave Pix:</span> <b class="pix-chave">${esc((l.chavePix || '').trim())}</b></div>
+    ${(l.pixNome || '').trim() ? `<div class="pix-info">👤 <b>Nome:</b> ${esc(l.pixNome.trim())}</div>` : ''}
+    ${(l.pixBanco || '').trim() ? `<div class="pix-info">🏛️ <b>Banco:</b> ${esc(l.pixBanco.trim())}</div>` : ''}
     <button type="button" class="btn btn-sec btn-peq" data-copiar-pix>📋 Copiar chave Pix</button>
     <small>Depois de pagar, mande o comprovante no WhatsApp da pizzaria.</small>`;
 }
@@ -1417,6 +1425,6 @@ function mostrarPixSucesso(pedido) {
   const el = $('#sucesso-pix');
   const mostrar = pedido.pagamento === 'pix' && !!(S.loja.chavePix || '').trim();
   el.hidden = !mostrar;
-  el.innerHTML = mostrar ? caixaPixHTML(S.loja.chavePix) : '';
+  el.innerHTML = mostrar ? caixaPixHTML() : '';
 }
 document.addEventListener('click', (e) => { if (e.target.closest('[data-copiar-pix]')) copiarPix(); });

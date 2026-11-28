@@ -96,6 +96,13 @@ O cliente abre o link, monta o pedido e, ao finalizar, o WhatsApp abre com o res
 - **Correção de 27/11/2026 (custos que "não salvavam"):** com o painel aberto em dois lugares ao mesmo tempo (celular e notebook, ou duas abas), um aparelho podia gravar a ficha inteira por cima e apagar o que o outro tinha salvo (foi o que sumiu com o custo das bebidas e o preço da Calabresa/Frango). Agora cada aparelho grava **só o que mudou** e junta o que vem do outro. No topo da área de custos aparece **✓ Tudo salvo**, **💾 Salvando…** ou **⚠️ Não salvou — tentando de novo…**. Versão dos arquivos `?v=30`.
 - **Novidade de 27/11/2026: 🗑️ Excluir pedido** em "⋯ Mais opções" do pedido (para pedido de teste ou lançado por engano). Versão dos arquivos `?v=31`.
 - **Correção de 28/11/2026: chave Pix.** A chave estava salva, mas só aparecia numa linha pequena do carrinho e **não ia na mensagem do WhatsApp**. Agora ela vai na mensagem ("🏦 *Chave Pix:* …", logo abaixo do pagamento), aparece em destaque no carrinho e na tela "Pedido enviado", com botão **📋 Copiar chave Pix**. Versão dos arquivos `?v=32`.
+- **Novidades de 28/11/2026 (2):**
+  - **👁️ Esconder valores** na tela de Pedidos: o olho ao lado do título troca todo "R$ 00,00" por "R$ •••". Vale **só no aparelho** em que você tocou e é lembrado nele.
+  - **Sabores grifados em amarelo** no card do pedido.
+  - **Pix com nome e banco:** em Ajustes, os campos "Nome de quem recebe o Pix" e "Banco / instituição" aparecem para o cliente (carrinho, tela final e mensagem do WhatsApp).
+  - **No notebook, o 📲 Informar cliente abre o WhatsApp Web direto e sempre na mesma aba**, em vez de abrir uma aba nova a cada aviso.
+  - Correção: o primeiro toque depois de abrir o painel às vezes "errava o botão", porque a faixa "ativar o som" sumia no meio do toque.
+  - Versão dos arquivos `?v=33`.
 - **Teste de 25/11/2026 (desfeito):** a `?v=23` mostrava a foto da bebida sempre inteira, com sobras brancas. O Eduardo não gostou, e a `?v=24` voltou ao jeito anterior: a foto preenche o quadro todo, como nas pizzas.
 - **O sistema antigo de custos** (`magalhaeseduardo71.github.io/pizzaria/`, Firebase `pizzaria-pedidos-61780`) é **separado** e continua funcionando. Não foi alterado.
 
@@ -209,6 +216,9 @@ Dica: salve o link como **mensagem rápida** no WhatsApp Business (ex.: `/cardap
   - **Sem WhatsApp:** o pedido é registrado com o nome, mas o cliente **não entra em Clientes** (o cadastro é pelo número). No painel aparece "(sem WhatsApp)", e depois do ✅ Pedido pronto o botão é **🏁 Entregue ao cliente**.
   - O modo balcão usa um carrinho separado: não mistura com o seu "Olá, Eduardo" do site.
 - **🗑️ Excluir pedido (teste ou engano):** em **Pedidos**, escolha o dia, toque em **⋯ Mais opções → 🗑️ Excluir pedido** e confirme em **Excluir definitivamente**. O pedido some da lista, do faturamento e do Balanço; se o cliente tem cadastro, o pedido é descontado do histórico dele. **Não dá para desfazer.** Para um pedido de verdade que não aconteceu, prefira mudar o status para **Cancelado** (fica registrado, mas não conta).
+- **👁️ Esconder os valores (alguém olhando a tela):** na tela **Pedidos**, toque no **olho 👁️** ao lado do título. Todo valor em reais vira **"R$ •••"** (faturamento, ticket médio, itens, totais, quanto o cliente já gastou), e o olho vira **🙈**. Toque de novo para mostrar. **Cada aparelho é independente:** esconder no notebook não esconde no celular, e o aparelho lembra a sua escolha até você tocar de novo.
+- **Sabores em destaque:** no card do pedido, cada sabor aparece **grifado em amarelo**, para achar rápido.
+- **WhatsApp Web no notebook:** o **📲 Informar cliente** (e "Avisar de novo") abre direto o **WhatsApp Web**, **sempre na mesma aba**. O primeiro aviso abre uma aba nova; os seguintes **reaproveitam essa aba** e só trocam de conversa. **Dica:** use essa aba para o WhatsApp Web no dia a dia; se você abrir o WhatsApp Web por outra aba sua, o navegador não consegue reaproveitar aquela. No celular, continua abrindo o aplicativo do WhatsApp.
 - **💸 Ajustar valor (desconto, cortesia, divergência):** quando o cliente pagou um valor diferente do pedido:
   1. Em **Pedidos**, escolha o **dia** do pedido no campo de data.
   2. No card do pedido, toque em **⋯ Mais opções → 💸 Ajustar valor**.
@@ -357,5 +367,5 @@ Pagamento online, frete por bairro ou distância, cupons, fidelidade, impressão
 - **Frete por bairro:** troque a função `taxa()` em `js/cliente.js`.
 - **Nova regra de preço:** acrescente uma entrada em `REGRAS_PRECO` em `js/utils.js`.
 - **Comanda:** reaproveite `pedidoHTML()` em `js/admin.js`.
-- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=32` → `?v=33` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
+- **Ao mudar qualquer arquivo de `js/` ou `css/`:** aumente o número `?v=33` → `?v=34` em **todos** os lugares, para o celular não misturar versão nova e antiga. São 2 linhas no `index.html`, 2 no `admin.html` e os `import` de `js/cliente.js`, `js/admin.js` e `js/custos.js`. Todos precisam ter o **mesmo** número. Para achar, use: `grep -rn "?v=" index.html admin.html js`.
 - **Versão do SDK do Firebase:** fica fixa (10.12.2) em `js/firebase-config.js` e no import do Auth em `js/admin.js`. Se for atualizar, troque nos dois lugares.

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Roda as baterias de teste, cada uma com o banco do emulador limpo.
-# Uso: bash testes/rodar.sh original custos v4-novas grupos apagar fotos tempo som pronto nota ovo bebida ajuste bairros balcao sincronia
+# Uso: bash testes/rodar.sh original custos v4-novas grupos apagar fotos tempo som pronto nota ovo bebida ajuste bairros balcao sincronia painel
 cd "$(dirname "$0")"
 RAIZ="$(cd .. && pwd)"
 (cd "$RAIZ" && python3 -m http.server 5500 --bind 127.0.0.1 > /dev/null 2>&1 &)
@@ -28,6 +28,7 @@ for t in "$@"; do
     bairros)    arq=e2e-bairros.mjs ;;
     balcao)     arq=e2e-balcao.mjs ;;
     sincronia)  arq=e2e-sincronia.mjs ;;
+    painel)     arq=e2e-painel.mjs ;;
     *) echo "bateria desconhecida: $t"; continue ;;
   esac
   REGRAS=novas timeout 300 node "$arq" > "out-$t.txt" 2>&1

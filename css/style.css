@@ -820,3 +820,15 @@ body.modo-balcao nav.abas { display: none !important; }
 .caixa-pix .pix-chave { font-size: 1.2rem; letter-spacing: 0.02em; user-select: all; -webkit-user-select: all; }
 .caixa-pix small { color: #2f5f58; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .caixa-pix { background: #0f2e2a; border-color: #32bcad; } :root:not([data-theme='light']) .caixa-pix .pix-linha { color: #d9f5f0; } :root:not([data-theme='light']) .caixa-pix small { color: #a8d8cf; } }
+
+.caixa-pix .pix-info { font-size: 0.98rem; color: #0b3d36; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .caixa-pix .pix-info { color: #d9f5f0; } }
+
+/* 👁️ esconder valores (Pedidos) */
+.btn-olho { font-size: 1.25rem; line-height: 1; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--borda); background: var(--superficie); vertical-align: middle; margin-left: 6px; cursor: pointer; }
+.btn-olho[aria-pressed="true"] { background: var(--superficie-2); }
+
+/* sabores grifados no card do pedido */
+mark.sabor { background: #ffe066; color: #3a2a00; font-weight: 800; padding: 1px 6px; border-radius: 4px; margin: 0 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) mark.sabor { background: #ffd43b; color: #2b1f00; } }
+:root[data-theme='dark'] mark.sabor { background: #ffd43b; color: #2b1f00; }
